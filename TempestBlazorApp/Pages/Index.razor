@@ -1,0 +1,239 @@
+@page "/"
+@using Microsoft.AspNetCore.SignalR.Client
+@using Tempest.WebSocket.Models.Responses
+@using System.Text.Json
+@inject NavigationManager NavigationManager
+
+<div class="container mt-4">
+    <h1 class="text-center text-primary mb-4" style="font-family: 'Arial', sans-serif; font-weight: bold;">Tempest Weather Dashboard</h1>
+
+    <div class="row">
+        <!-- Wind Data Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card bg-light text-dark shadow-sm hover-card" style="border-color: #007bff;">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-wind me-2"></i> Wind Conditions
+                </div>
+                <div class="card-body">
+                    @if (latestRapidWind != null)
+                    {
+                        <p class="card-text"><i class="fas fa-tachometer-alt me-2"></i> <strong>Speed:</strong> @((latestRapidWind.WindSpeedInMetersPerSecond * 2.23694).ToString("F2")) MPH</p>
+                        <p class="card-text">
+                            <i class="fas fa-compass me-2" style="transform: rotate(@(latestRapidWind.WindDirectionInDegrees)deg);"></i>
+                            <strong>Direction:</strong> @latestRapidWind.WindDirectionInDegrees °
+                        </p>
+                        <p class="card-text"><i class="fas fa-clock me-2"></i> <strong>Time:</strong> @ConvertUtcToLocal(latestRapidWind.TimeEpochInSeconds)?.ToString("yyyy-MM-dd HH:mm:ss")</p>
+                    }
+                    else
+                    {
+                        <p class="card-text">Waiting for wind data...</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Station Data Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card bg-light text-dark shadow-sm hover-card" style="border-color: #007bff;">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-thermometer-half me-2"></i> Station Conditions
+                </div>
+                <div class="card-body">
+                    @if (latestStationObservation != null)
+                    {
+                        <p class="card-text"><i class="fas fa-thermometer-half me-2"></i> <strong>Temperature:</strong> @((latestStationObservation.AirTemperatureInCelsius * 9/5 + 32)?.ToString("F1")) °F</p>
+                        <p class="card-text"><i class="fas fa-thermometer-quarter me-2"></i> <strong>Feels Like:</strong> @((latestStationObservation.Summary?.FeelsLike * 9/5 + 32)?.ToString("F1")) °F</p>
+                        <p class="card-text"><i class="fas fa-tachometer-alt me-2"></i> <strong>Pressure:</strong> @latestStationObservation.StationPressureInMillibar?.ToString("F1") mbar</p>
+                        <p class="card-text"><i class="fas fa-tint me-2"></i> <strong>Precipitation (1h):</strong> @((latestStationObservation.Summary?.PrecipTotal1h / 25.4)?.ToString("F2")) inches</p>
+                        <p class="card-text"><i class="fas fa-humidity me-2"></i> <strong>Humidity:</strong> @latestStationObservation.RelativeHumidity?.ToString("F0") %</p>
+                        <p class="card-text"><i class="fas fa-clock me-2"></i> <strong>Time:</strong> @ConvertUtcToLocal(GetObservationTime(latestStationObservation))?.ToString("yyyy-MM-dd HH:mm:ss")</p>
+                    }
+                    else
+                    {
+                        <p class="card-text">Waiting for station data...</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .hover-card:hover {
+        transform: translateY(-5px);
+        transition: transform 0.3s ease-in-out;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2) !important;
+    }
+</style>
+
+@code {
+    private HubConnection? hubConnection;
+    private string message = "Waiting for message...";
+    private RapidWind? latestRapidWind;
+    private StationObservation? latestStationObservation;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            hubConnection = new HubConnectionBuilder()
+                .WithUrl(NavigationManager.ToAbsoluteUri("/weatherHub"))
+                .WithKeepAliveInterval(TimeSpan.FromSeconds(15))
+                .WithServerTimeout(TimeSpan.FromSeconds(30))
+                .WithAutomaticReconnect()
+                .Build();
+
+            Console.WriteLine($"Registering handlers at {DateTime.Now.ToString("HH:mm:ss")}");
+            hubConnection.On<string>("ReceiveWeatherUpdate", async (msg) =>
+            {
+                Console.WriteLine($"Received string at {DateTime.Now.ToString("HH:mm:ss")}: {msg}");
+                message = msg;
+                await InvokeAsync(() =>
+                {
+                    StateHasChanged();
+                    Console.WriteLine($"UI Updated with string at {DateTime.Now.ToString("HH:mm:ss")}");
+                });
+            });
+
+            hubConnection.On<string>("ReceiveWeatherUpdateRaw", async (rawMsg) =>
+            {
+                Console.WriteLine($"Received raw message at {DateTime.Now.ToString("HH:mm:ss")}: {rawMsg}");
+                try
+                {
+                    using var doc = JsonDocument.Parse(rawMsg);
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("type", out var typeElement))
+                    {
+                        var type = typeElement.GetString();
+                        var options = new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true,
+                            AllowTrailingCommas = true,
+                            NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString
+                        };
+
+                        if (type == "rapidwind")
+                        {
+                            var rapidWind = JsonSerializer.Deserialize<RapidWind>(rawMsg, options);
+                            if (rapidWind != null)
+                            {
+                                Console.WriteLine($"Deserialized RapidWind: DeviceId={rapidWind.DeviceId}, Speed={rapidWind.WindSpeedInMetersPerSecond}, Direction={rapidWind.WindDirectionInDegrees}, Time={rapidWind.TimeEpochInSeconds}, Observation={string.Join(", ", rapidWind.Observation?.Select(x => x?.ToString() ?? "null") ?? new List<string>())}");
+                                latestRapidWind = rapidWind;
+                                await InvokeAsync(() =>
+                                {
+                                    StateHasChanged();
+                                    Console.WriteLine($"UI Updated with RapidWind at {DateTime.Now.ToString("HH:mm:ss")}");
+                                });
+                            }
+                            else
+                            {
+                                Console.WriteLine($"Failed to deserialize RapidWind on client: {rawMsg}");
+                            }
+                        }
+                        else if (type == "stationobservation")
+                        {
+                            var stationObs = JsonSerializer.Deserialize<StationObservation>(rawMsg, options);
+                            if (stationObs != null)
+                            {
+                                Console.WriteLine($"Deserialized StationObservation: DeviceId={stationObs.DeviceId}, Temperature={stationObs.AirTemperatureInCelsius?.ToString() ?? "null"}, Pressure={stationObs.StationPressureInMillibar?.ToString() ?? "null"}, Time={GetObservationTime(stationObs)}");
+                                latestStationObservation = stationObs;
+                                await InvokeAsync(() =>
+                                {
+                                    StateHasChanged();
+                                    Console.WriteLine($"UI Updated with StationObservation at {DateTime.Now.ToString("HH:mm:ss")}");
+                                });
+                            }
+                            else
+                            {
+                                Console.WriteLine($"Failed to deserialize StationObservation on client: {rawMsg}");
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error deserializing raw message at {DateTime.Now.ToString("HH:mm:ss")}: {ex.Message}\n{ex.StackTrace}");
+                }
+            });
+
+            hubConnection.Reconnecting += ex =>
+            {
+                Console.WriteLine($"Reconnecting at {DateTime.Now:HH:mm:ss}: {ex?.Message}");
+                return Task.CompletedTask;
+            };
+
+            hubConnection.Reconnected += connectionId =>
+            {
+                Console.WriteLine($"Reconnected at {DateTime.Now.ToString("HH:mm:ss")}: {connectionId}");
+                return Task.CompletedTask;
+            };
+            hubConnection.Closed += ex =>
+            {
+                Console.WriteLine($"Closed at {DateTime.Now.ToString("HH:mm:ss")}: {ex?.Message}");
+                return Task.CompletedTask;
+            };
+
+            Console.WriteLine($"HubConnection State Before Start: {(hubConnection != null ? hubConnection.State.ToString() : "Null HubConnection")} at {DateTime.Now.ToString("HH:mm:ss")}");
+            if (hubConnection != null)
+            {
+                var initialRetryDelays = new[] { TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5) };
+                Exception? lastStartException = null;
+                var started = false;
+
+                for (var attempt = 0; attempt <= initialRetryDelays.Length; attempt++)
+                {
+                    try
+                    {
+                        await hubConnection.StartAsync();
+                        started = true;
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        lastStartException = ex;
+                        if (attempt == initialRetryDelays.Length)
+                        {
+                            break;
+                        }
+
+                        Console.WriteLine($"Initial hub connect attempt {attempt + 1} failed at {DateTime.Now:HH:mm:ss}: {ex.Message}. Retrying in {initialRetryDelays[attempt].TotalSeconds:F0}s...");
+                        await Task.Delay(initialRetryDelays[attempt]);
+                    }
+                }
+
+                if (!started)
+                {
+                    throw new InvalidOperationException("Failed to establish SignalR connection after retries.", lastStartException);
+                }
+
+                Console.WriteLine($"HubConnection State After Start: {hubConnection.State} at {DateTime.Now.ToString("HH:mm:ss")}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"SignalR Error at {DateTime.Now.ToString("HH:mm:ss")}: {ex.Message}\n{ex.StackTrace}");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+
+    private DateTime? GetObservationTime(StationObservation observation)
+    {
+        return observation?.Obs?.Count > 0 && observation.Obs[0].Count > 0 && observation.Obs[0][0].HasValue
+            ? DateTimeOffset.FromUnixTimeSeconds((long)observation.Obs[0][0]!.Value).UtcDateTime
+            : null;
+    }
+
+    private DateTime? ConvertUtcToLocal(DateTime? utcDateTime)
+    {
+        return utcDateTime.HasValue
+            ? DateTime.SpecifyKind(utcDateTime.Value, DateTimeKind.Utc).ToLocalTime()
+            : null;
+    }
+}

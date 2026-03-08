@@ -1,0 +1,16 @@
+[Unit]
+Description=Tempest Weather Backend Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__SERVICE_USER__
+WorkingDirectory=__INSTALL_ROOT__/backend
+ExecStart=__INSTALL_ROOT__/backend/TempestBlazorApp --urls http://0.0.0.0:__BACKEND_PORT__
+Restart=always
+RestartSec=5
+Environment=ASPNETCORE_ENVIRONMENT=Production
+
+[Install]
+WantedBy=multi-user.target

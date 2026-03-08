@@ -1,0 +1,576 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Tempest.UI.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1024" d:DesignHeight="600"
+        x:Class="Tempest.UI.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        Title="Tempest Weather Station"
+        Width="1024"
+        Height="600"
+        CanResize="False"
+        SystemDecorations="None">
+
+    <Design.DataContext>
+        <vm:MainWindowViewModel />
+    </Design.DataContext>
+
+    <Window.Styles>
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="BoxShadow" Value="{DynamicResource CardShadow}"/>
+        </Style>
+        
+        <Style Selector="TextBlock.title">
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
+        
+        <Style Selector="TextBlock.value">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="FontSize" Value="24"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        
+        <Style Selector="TextBlock.large-value">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="FontSize" Value="56"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        
+        <Style Selector="TextBlock.icon">
+            <Setter Property="FontSize" Value="56"/>
+        </Style>
+
+        <Style Selector="Button.menu-button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="ClickMode" Value="Release"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+
+        <Style Selector="Button.menu-button:pointerover">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+
+        <Style Selector="Button#MenuButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+
+        <Style Selector="Button.menu-button:pressed">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+
+        <Style Selector="Button#MenuButton:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+
+        <Style Selector="Button.menu-button:focus">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+
+        <Style Selector="Button#MenuButton:focus /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+
+        <Style Selector="Button.header-menu-item">
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="Padding" Value="20,16"/>
+            <Setter Property="MinHeight" Value="64"/>
+            <Setter Property="Background" Value="{DynamicResource ForecastDayBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="ClickMode" Value="Release"/>
+        </Style>
+
+        <Style Selector="Button.header-menu-item:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+
+        <Style Selector="Button.header-menu-item:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+
+        <Style Selector="Border#HeaderMenuPanel Button.header-menu-item:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+
+        <Style Selector="Button.header-menu-item:pressed">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+
+        <Style Selector="Button.header-menu-item:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+
+        <Style Selector="Border#HeaderMenuPanel Button.header-menu-item:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+    </Window.Styles>
+
+    <Viewbox Stretch="Uniform" StretchDirection="Both">
+    <Grid Width="1024" Height="600" Margin="0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="0.9*"/>
+            <ColumnDefinition Width="0.9*"/>
+            <ColumnDefinition Width="0.6*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" 
+                Classes="card" Padding="12" Margin="4,4,4,8">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Location and date/time on left -->
+                <StackPanel Grid.Row="0" Orientation="Vertical" HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding LocationName}" 
+                               FontSize="16" FontWeight="Bold" 
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{Binding CurrentDayOfWeek}" 
+                                   FontSize="12" 
+                                   Foreground="{DynamicResource AccentBrush}"/>
+                        <TextBlock Text="{Binding CurrentDate}" 
+                                   FontSize="12" 
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{Binding CurrentTime}" 
+                                   FontSize="12" 
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+                
+                <!-- Weather condition centered -->
+                <TextBlock Grid.Row="0" Text="{Binding WeatherCondition}" 
+                           FontSize="22" FontWeight="Bold"
+                           Foreground="{DynamicResource TextPrimaryBrush}"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"/>
+                
+                <!-- Status and menu on right -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="6">
+                    <Ellipse Width="8" Height="8" 
+                             Fill="{Binding IsConnected, Converter={StaticResource BoolToColorConverter}}"
+                             Margin="0,0,6,0"
+                             VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding LastUpdated, StringFormat='Updated: {0}'}" 
+                               FontSize="10" 
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               VerticalAlignment="Center"
+                               Margin="0,0,6,0"/>
+                        <Button x:Name="MenuButton"
+                            Content="☰"
+                            Classes="menu-button"
+                            Background="Transparent"
+                            Foreground="{DynamicResource AccentBrush}"
+                                Padding="14,8"
+                                FontSize="20"
+                            FontWeight="Bold"
+                                CornerRadius="4"
+                                Click="OnMenuButtonClick"/>
+                </StackPanel>
+
+            </Grid>
+        </Border>
+
+        <!-- Status Notification Banner -->
+        <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" 
+                Background="{Binding StatusMessageColor}" 
+                Padding="12,8" 
+                Margin="4,4,4,0"
+                CornerRadius="8"
+                IsVisible="{Binding ShowStatusMessage}"
+                VerticalAlignment="Top"
+                ZIndex="1000">
+            <TextBlock Text="{Binding StatusMessage}" 
+                       FontSize="16" 
+                       FontWeight="Bold"
+                       Foreground="{DynamicResource TextPrimaryBrush}"
+                       HorizontalAlignment="Center"/>
+        </Border>
+
+        <!-- Current Temperature - Large Card -->
+        <Border Grid.Row="1" Grid.Column="0" Classes="card">
+            <StackPanel VerticalAlignment="Stretch">
+                <TextBlock Text="CURRENT TEMPERATURE" Classes="title" HorizontalAlignment="Center"/>
+                
+                <Grid Margin="0,8,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock HorizontalAlignment="Center">
+                            <Run Text="{Binding CurrentTemperature, StringFormat='{}{0:F1}'}" FontSize="70" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <Run Text="°F" FontSize="48" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        </TextBlock>
+                        
+                        <TextBlock Text="{Binding FeelsLike, StringFormat='Feels like {0:F1}°F'}" 
+                                   FontSize="18" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                    </StackPanel>
+                    
+                    <Image Grid.Column="1" Source="{Binding WeatherIcon}" 
+                           Width="110" Height="110" VerticalAlignment="Center" Margin="16,0,0,0"/>
+                </Grid>
+                
+                <Grid Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                        <TextBlock Text="HIGH" Classes="title" HorizontalAlignment="Center"/>
+                        <TextBlock Foreground="{DynamicResource DangerBrush}" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center">
+                            <Run Text="{Binding HighTemperature, StringFormat='{}{0:F1}'}" />
+                            <Run Text="°F"/>
+                        </TextBlock>
+                    </StackPanel>
+                    
+                    <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                        <TextBlock Text="LOW" Classes="title" HorizontalAlignment="Center"/>
+                        <TextBlock Foreground="{DynamicResource AccentBrush}" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center">
+                            <Run Text="{Binding LowTemperature, StringFormat='{}{0:F1}'}"/>
+                            <Run Text="°F"/>
+                        </TextBlock>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Wind Speed Card -->
+        <Border Grid.Row="1" Grid.Column="1" Classes="card">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                
+                <TextBlock Grid.Row="0" Text="WIND CONDITIONS" Classes="title" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                
+                <Grid Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <!-- Left Info: Direction -->
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <TextBlock Text="Direction" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{Binding WindDirectionCardinal}" 
+                                   FontSize="32" FontWeight="Bold" 
+                                   Foreground="{DynamicResource AccentBrush}"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,4,0,4"/>
+                        <TextBlock HorizontalAlignment="Center" 
+                                   FontSize="14" Foreground="{DynamicResource TextSecondaryBrush}">
+                            <Run Text="{Binding WindDirection, StringFormat='{}{0}°'}"/>
+                        </TextBlock>
+                    </StackPanel>
+                    
+                    <!-- Center: Compass with Speed -->
+                    <Grid Grid.Column="1" Width="150" Height="150">
+                        <!-- Compass Background Circle -->
+                        <Ellipse Width="150" Height="150" 
+                                 Fill="{DynamicResource CardBackgroundBrush}" 
+                                 Stroke="{DynamicResource AccentBrush}" 
+                                 StrokeThickness="3"/>
+                        
+                        <!-- Cardinal Direction Markers -->
+                        <Canvas Width="150" Height="150">
+                            <!-- N -->
+                            <TextBlock Canvas.Left="66" Canvas.Top="4" 
+                                       Text="N" FontSize="18" FontWeight="Bold" 
+                                       Foreground="{DynamicResource DangerBrush}"/>
+                            <!-- E -->
+                            <TextBlock Canvas.Left="126" Canvas.Top="66" 
+                                       Text="E" FontSize="16" FontWeight="Bold" 
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <!-- S -->
+                            <TextBlock Canvas.Left="68" Canvas.Top="126" 
+                                       Text="S" FontSize="16" FontWeight="Bold" 
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <!-- W -->
+                            <TextBlock Canvas.Left="6" Canvas.Top="66" 
+                                       Text="W" FontSize="16" FontWeight="Bold" 
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </Canvas>
+                        
+                        <!-- Wind Speed in Center -->
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <Image Source="/Assets/wind-icon.png" Width="36" Height="36" HorizontalAlignment="Center"/>
+                            <TextBlock Classes="value" HorizontalAlignment="Center" Margin="0,2,0,0" FontSize="28">
+                                <Run Text="{Binding WindSpeed, StringFormat='{}{0:F1}'}"/>
+                            </TextBlock>
+                            <TextBlock Text="MPH" FontSize="14" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                        
+                        <!-- Direction Marker on Circle Edge -->
+                        <Canvas Width="150" Height="150">
+                                <Path Fill="{DynamicResource CompassMarkerFillBrush}" 
+                                    Stroke="{DynamicResource CompassMarkerStrokeBrush}" 
+                                  StrokeThickness="2"
+                                  Data="M 68,4 L 82,4 L 75,18 Z"
+                                  RenderTransformOrigin="0.5,0.5">
+                                <Path.RenderTransform>
+                                    <RotateTransform Angle="{Binding WindDirection}" CenterX="75" CenterY="75"/>
+                                </Path.RenderTransform>
+                            </Path>
+                        </Canvas>
+                    </Grid>
+                    
+                    <!-- Right Info: Gusts -->
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="16,0,0,0">
+                        <TextBlock Text="Gusts" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                        <Image Source="/Assets/gust-icon.png" Width="32" Height="32" HorizontalAlignment="Center" Margin="0,4,0,4"/>
+                        <TextBlock FontSize="26" FontWeight="Bold" Foreground="{DynamicResource DangerBrush}" HorizontalAlignment="Center" Margin="0,4,0,4">
+                            <Run Text="{Binding WindGust, StringFormat='{}{0:F1}'}"/>
+                        </TextBlock>
+                        <TextBlock Text="MPH" FontSize="14" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
+        
+        <!-- Combined Humidity, Pressure & Metrics Card -->
+        <Border Grid.Row="1" Grid.Column="2" Classes="card" Padding="8">
+            <StackPanel VerticalAlignment="Top">
+                <!-- Humidity & Pressure Section -->
+                <TextBlock Text="HUMIDITY &amp; PRESSURE" Classes="title" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                
+                <Grid HorizontalAlignment="Center" Margin="0,4,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <!-- Humidity -->
+                    <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                        <Image Source="/Assets/humidity-icon.png" Width="24" Height="24" HorizontalAlignment="Center"/>
+                        <TextBlock FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center" Margin="0,2,0,0">
+                            <Run Text="{Binding Humidity}"/>
+                            <Run Text="%" FontSize="14"/>
+                        </TextBlock>
+                        <TextBlock Text="Humidity" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                    
+                    <!-- Pressure -->
+                    <StackPanel Grid.Column="1">
+                        <Image Source="/Assets/pressure-icon.png" Width="24" Height="24" HorizontalAlignment="Center"/>
+                        <TextBlock FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center" Margin="0,2,0,0">
+                            <Run Text="{Binding Pressure, StringFormat='{}{0:F1}'}"/>
+                            <Run Text=" mb" FontSize="14"/>
+                        </TextBlock>
+                        <TextBlock Text="{Binding PressureTrend, StringFormat='Trend: {0}'}" 
+                                   FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+                
+                <!-- Metrics Section -->
+                <TextBlock Text="METRICS" Classes="title" HorizontalAlignment="Center" Margin="0,16,0,8"/>
+                <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <!-- UV Index -->
+                    <StackPanel Grid.Column="0" Margin="0,0,8,0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Image Source="/Assets/sun-icon.png" Width="18" Height="18" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{Binding UvIndex}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                        <TextBlock Text="UV Index" FontSize="8" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                    
+                    <!-- Precipitation -->
+                    <StackPanel Grid.Column="1" Margin="0,0,8,0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Image Source="/Assets/precip-icon.png" Width="18" Height="18" HorizontalAlignment="Center"/>
+                        <TextBlock FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center" Margin="0,2,0,0">
+                            <Run Text="{Binding Precipitation24h, StringFormat='{}{0:F2}'}"/>
+                            <Run Text=" in" FontSize="12"/>
+                        </TextBlock>
+                        <TextBlock Text="Precip (24h)" FontSize="8" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                    
+                    <!-- Lightning -->
+                    <StackPanel Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Image Source="/Assets/lightning-icon.png" Width="18" Height="18" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{Binding LightningStrikes}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                        <TextBlock Text="Lightning (1h)" FontSize="8" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Border>
+        
+        <!-- Forecast Card - Full Width Bottom Row -->
+        <Border Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Classes="card">
+                <StackPanel>
+                    <TextBlock Text="7-DAY FORECAST" Classes="title" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                    
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <!-- Day 1 -->
+                        <Border Grid.Column="0" Background="{DynamicResource ForecastDayBackgroundBrush}" CornerRadius="6" Padding="8" Margin="2" MinHeight="200">
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
+                                <TextBlock Text="Tomorrow" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                                <Image Source="{Binding Day1Icon}" Width="64" Height="64" HorizontalAlignment="Center" Margin="0,4,0,4"/>
+                                <TextBlock Text="{Binding Day1Temp}" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center" TextAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
+                                    <Image Source="/Assets/precip-icon.png" Width="14" Height="14" Margin="0,0,4,0"/>
+                                    <TextBlock Text="{Binding Day1Precip}" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                            
+                        <!-- Day 2 -->
+                        <Border Grid.Column="1" Background="{DynamicResource ForecastDayBackgroundBrush}" CornerRadius="6" Padding="8" Margin="2" MinHeight="200">
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
+                                <TextBlock Text="Day 2" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                                <Image Source="{Binding Day2Icon}" Width="64" Height="64" HorizontalAlignment="Center" Margin="0,4,0,4"/>
+                                <TextBlock Text="{Binding Day2Temp}" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center" TextAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
+                                    <Image Source="/Assets/precip-icon.png" Width="14" Height="14" Margin="0,0,4,0"/>
+                                    <TextBlock Text="{Binding Day2Precip}" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Day 3 -->
+                        <Border Grid.Column="2" Background="{DynamicResource ForecastDayBackgroundBrush}" CornerRadius="6" Padding="12" Margin="2" MinHeight="200">
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
+                                <TextBlock Text="Day 3" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                                <Image Source="{Binding Day3Icon}" Width="64" Height="64" HorizontalAlignment="Center" Margin="0,4,0,4"/>
+                                <TextBlock Text="{Binding Day3Temp}" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center" TextAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
+                                    <Image Source="/Assets/precip-icon.png" Width="14" Height="14" Margin="0,0,4,0"/>
+                                    <TextBlock Text="{Binding Day3Precip}" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Day 4 -->
+                        <Border Grid.Column="3" Background="{DynamicResource ForecastDayBackgroundBrush}" CornerRadius="6" Padding="8" Margin="2" MinHeight="200">
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
+                                <TextBlock Text="Day 4" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                                <Image Source="{Binding Day4Icon}" Width="64" Height="64" HorizontalAlignment="Center" Margin="0,4,0,4"/>
+                                <TextBlock Text="{Binding Day4Temp}" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center" TextAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
+                                    <Image Source="/Assets/precip-icon.png" Width="14" Height="14" Margin="0,0,4,0"/>
+                                    <TextBlock Text="{Binding Day4Precip}" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Day 5 -->
+                        <Border Grid.Column="4" Background="{DynamicResource ForecastDayBackgroundBrush}" CornerRadius="6" Padding="8" Margin="2" MinHeight="200">
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
+                                <TextBlock Text="Day 5" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                                <Image Source="{Binding Day5Icon}" Width="64" Height="64" HorizontalAlignment="Center" Margin="0,4,0,4"/>
+                                <TextBlock Text="{Binding Day5Temp}" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center" TextAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
+                                    <Image Source="/Assets/precip-icon.png" Width="14" Height="14" Margin="0,0,4,0"/>
+                                    <TextBlock Text="{Binding Day5Precip}" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Day 6 -->
+                        <Border Grid.Column="5" Background="{DynamicResource ForecastDayBackgroundBrush}" CornerRadius="6" Padding="8" Margin="2" MinHeight="200">
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
+                                <TextBlock Text="Day 6" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                                <Image Source="{Binding Day6Icon}" Width="64" Height="64" HorizontalAlignment="Center" Margin="0,4,0,4"/>
+                                <TextBlock Text="{Binding Day6Temp}" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center" TextAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
+                                    <Image Source="/Assets/precip-icon.png" Width="14" Height="14" Margin="0,0,4,0"/>
+                                    <TextBlock Text="{Binding Day6Precip}" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Day 7 -->
+                        <Border Grid.Column="6" Background="{DynamicResource ForecastDayBackgroundBrush}" CornerRadius="6" Padding="8" Margin="2" MinHeight="200">
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
+                                <TextBlock Text="Day 7" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                                <Image Source="{Binding Day7Icon}" Width="64" Height="64" HorizontalAlignment="Center" Margin="0,4,0,4"/>
+                                <TextBlock Text="{Binding Day7Temp}" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center" TextAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
+                                    <Image Source="/Assets/precip-icon.png" Width="14" Height="14" Margin="0,0,4,0"/>
+                                    <TextBlock Text="{Binding Day7Precip}" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+        <Border x:Name="HeaderMenuPopup"
+                Grid.Row="0"
+                Grid.RowSpan="3"
+                Grid.Column="0"
+                Grid.ColumnSpan="3"
+                IsVisible="False"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Margin="0,60,8,0"
+                ZIndex="5000"
+                Background="{DynamicResource CardBackgroundBrush}"
+                BorderBrush="{DynamicResource AccentBrush}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Width="360"
+                Padding="8">
+            <StackPanel>
+                <Button Classes="header-menu-item" Content="Themes" Click="OnThemesMenuItemClick"/>
+                <Button Classes="header-menu-item" Content="Restart Service &amp; UI" Click="OnRestartMenuItemClick"/>
+                <Button Classes="header-menu-item" Content="Reboot" Click="OnRebootMenuItemClick"/>
+                <Button Classes="header-menu-item" Content="Exit" Click="OnExitMenuItemClick"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+    </Viewbox>
+</Window>

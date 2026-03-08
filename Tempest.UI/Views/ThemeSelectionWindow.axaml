@@ -1,0 +1,74 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Tempest.UI.Views.ThemeSelectionWindow"
+        Title="Themes"
+        Width="520"
+        Height="340"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource WindowBackgroundBrush}">
+
+    <Grid Margin="30" RowDefinitions="Auto,*">
+        <StackPanel Spacing="8" Margin="0,0,0,20">
+            <TextBlock Text="Themes"
+                       FontSize="24"
+                       FontWeight="Bold"
+                       Foreground="{DynamicResource AccentBrush}"/>
+            <TextBlock Text="Select a theme to apply and save immediately."
+                       FontSize="14"
+                       Foreground="{DynamicResource TextPrimaryBrush}"
+                       TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <Border Grid.Row="1"
+                Background="{DynamicResource CardBackgroundBrush}"
+                BorderBrush="{DynamicResource AccentBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="10">
+            <ListBox x:Name="ThemeListBox"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     FontSize="14"
+                     Foreground="{DynamicResource TextPrimaryBrush}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   FontWeight="SemiBold"/>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Border>
+
+        <Grid.Styles>
+            <Style Selector="ListBoxItem">
+                <Setter Property="Padding" Value="10,8"/>
+                <Setter Property="Margin" Value="0,2"/>
+                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="CornerRadius" Value="6"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            </Style>
+
+            <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                <Setter Property="Background" Value="{DynamicResource ForecastDayBackgroundBrush}"/>
+                <Setter Property="TextElement.Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            </Style>
+
+            <Style Selector="ListBoxItem:pointerover TextBlock">
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            </Style>
+
+            <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+                <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+                <Setter Property="TextElement.Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            </Style>
+
+            <Style Selector="ListBoxItem:selected TextBlock">
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            </Style>
+        </Grid.Styles>
+
+    </Grid>
+</Window>

@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - "feature/**"
+      - "features/**"
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Restore
+        run: dotnet restore TempestConsole.sln
+
+      - name: Build
+        run: dotnet build TempestConsole.sln --configuration Release --no-restore
+
+      - name: Test WebSocket
+        run: dotnet test Tempest.WebSocket.Tests/Tempest.WebSocket.Tests.csproj --configuration Release --no-build --nologo
+
+      - name: Test Blazor App
+        run: dotnet test TempestBlazorApp.Tests/TempestBlazorApp.Tests.csproj --configuration Release --no-build --nologo
+
+      - name: Coverage gate (WebSocket tests, min 70% line)
+        run: dotnet test Tempest.WebSocket.Tests/Tempest.WebSocket.Tests.csproj --configuration Release --no-build --nologo /p:CollectCoverage=true /p:CoverletOutput=./TestResults/WebSocket/ /p:CoverletOutputFormat=cobertura /p:IncludeTestAssembly=true /p:Include="[Tempest.WebSocket.Tests]*" /p:Threshold=70 /p:ThresholdType=line /p:ThresholdStat=total
+
+      - name: Coverage gate (Blazor tests, min 70% line)
+        run: dotnet test TempestBlazorApp.Tests/TempestBlazorApp.Tests.csproj --configuration Release --no-build --nologo /p:CollectCoverage=true /p:CoverletOutput=./TestResults/Blazor/ /p:CoverletOutputFormat=cobertura /p:IncludeTestAssembly=true /p:Include="[TempestBlazorApp.Tests]*" /p:Threshold=70 /p:ThresholdType=line /p:ThresholdStat=total

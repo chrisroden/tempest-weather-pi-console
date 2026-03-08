@@ -1,0 +1,18 @@
+[Unit]
+Description=Tempest Weather UI Service
+After=graphical.target tempest-backend.service
+Wants=graphical.target
+
+[Service]
+Type=simple
+User=__SERVICE_USER__
+WorkingDirectory=__INSTALL_ROOT__/ui
+ExecStart=__INSTALL_ROOT__/ui/Tempest.UI
+Restart=always
+RestartSec=5
+Environment=DOTNET_ENVIRONMENT=Production
+Environment=DISPLAY=__DISPLAY__
+Environment=XAUTHORITY=__XAUTHORITY__
+
+[Install]
+WantedBy=graphical.target

@@ -1,0 +1,80 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ResourceDictionary x:Key="NamedThemes">
+    <ResourceDictionary x:Key="Default">
+      <SolidColorBrush x:Key="WindowBackgroundBrush">#0A1929</SolidColorBrush>
+      <SolidColorBrush x:Key="CardBackgroundBrush">#132F4C</SolidColorBrush>
+      <SolidColorBrush x:Key="ForecastDayBackgroundBrush">#0D2238</SolidColorBrush>
+      <SolidColorBrush x:Key="TextPrimaryBrush">#FFFFFF</SolidColorBrush>
+      <SolidColorBrush x:Key="TextSecondaryBrush">#B2BAC2</SolidColorBrush>
+      <SolidColorBrush x:Key="AccentBrush">#4ECDC4</SolidColorBrush>
+      <SolidColorBrush x:Key="DangerBrush">#FF6B6B</SolidColorBrush>
+      <SolidColorBrush x:Key="WarningBrush">#F7931E</SolidColorBrush>
+      <SolidColorBrush x:Key="CompassMarkerFillBrush">#FFD700</SolidColorBrush>
+      <SolidColorBrush x:Key="CompassMarkerStrokeBrush">#FFA500</SolidColorBrush>
+      <BoxShadows x:Key="CardShadow">0 4 16 0 #00000033</BoxShadows>
+      <x:String x:Key="StatusInfoColor">#F7931E</x:String>
+      <x:String x:Key="StatusErrorColor">#DC3545</x:String>
+      <SolidColorBrush x:Key="StatusConnectedBrush">#4ECDC4</SolidColorBrush>
+      <SolidColorBrush x:Key="StatusDisconnectedBrush">#FF6B6B</SolidColorBrush>
+      <SolidColorBrush x:Key="StatusUnknownBrush">#666666</SolidColorBrush>
+    </ResourceDictionary>
+
+    <ResourceDictionary x:Key="Walnut">
+      <SolidColorBrush x:Key="WindowBackgroundBrush">#1A130E</SolidColorBrush>
+      <SolidColorBrush x:Key="CardBackgroundBrush">#2B1F17</SolidColorBrush>
+      <SolidColorBrush x:Key="ForecastDayBackgroundBrush">#241A14</SolidColorBrush>
+      <SolidColorBrush x:Key="TextPrimaryBrush">#F6EEE6</SolidColorBrush>
+      <SolidColorBrush x:Key="TextSecondaryBrush">#CCB8A3</SolidColorBrush>
+      <SolidColorBrush x:Key="AccentBrush">#D19A66</SolidColorBrush>
+      <SolidColorBrush x:Key="DangerBrush">#CF6F5A</SolidColorBrush>
+      <SolidColorBrush x:Key="WarningBrush">#C1854D</SolidColorBrush>
+      <SolidColorBrush x:Key="CompassMarkerFillBrush">#D6B36A</SolidColorBrush>
+      <SolidColorBrush x:Key="CompassMarkerStrokeBrush">#A9783F</SolidColorBrush>
+      <BoxShadows x:Key="CardShadow">0 4 16 0 #00000055</BoxShadows>
+      <x:String x:Key="StatusInfoColor">#C1854D</x:String>
+      <x:String x:Key="StatusErrorColor">#A84D3A</x:String>
+      <SolidColorBrush x:Key="StatusConnectedBrush">#D19A66</SolidColorBrush>
+      <SolidColorBrush x:Key="StatusDisconnectedBrush">#CF6F5A</SolidColorBrush>
+      <SolidColorBrush x:Key="StatusUnknownBrush">#8D7A68</SolidColorBrush>
+    </ResourceDictionary>
+
+    <ResourceDictionary x:Key="Snow">
+      <SolidColorBrush x:Key="WindowBackgroundBrush">#DEE2E8</SolidColorBrush>
+      <SolidColorBrush x:Key="CardBackgroundBrush">#FFFFFF</SolidColorBrush>
+      <SolidColorBrush x:Key="ForecastDayBackgroundBrush">#DBE0E7</SolidColorBrush>
+      <SolidColorBrush x:Key="TextPrimaryBrush">#1F2937</SolidColorBrush>
+      <SolidColorBrush x:Key="TextSecondaryBrush">#6B7280</SolidColorBrush>
+      <SolidColorBrush x:Key="AccentBrush">#9CA3AF</SolidColorBrush>
+      <SolidColorBrush x:Key="DangerBrush">#6B7280</SolidColorBrush>
+      <SolidColorBrush x:Key="WarningBrush">#9CA3AF</SolidColorBrush>
+      <SolidColorBrush x:Key="CompassMarkerFillBrush">#D1D5DB</SolidColorBrush>
+      <SolidColorBrush x:Key="CompassMarkerStrokeBrush">#6B7280</SolidColorBrush>
+      <BoxShadows x:Key="CardShadow">0 4 16 0 #0000001F</BoxShadows>
+      <x:String x:Key="StatusInfoColor">#6B7280</x:String>
+      <x:String x:Key="StatusErrorColor">#4B5563</x:String>
+      <SolidColorBrush x:Key="StatusConnectedBrush">#9CA3AF</SolidColorBrush>
+      <SolidColorBrush x:Key="StatusDisconnectedBrush">#6B7280</SolidColorBrush>
+      <SolidColorBrush x:Key="StatusUnknownBrush">#D1D5DB</SolidColorBrush>
+    </ResourceDictionary>
+
+    <ResourceDictionary x:Key="White-Ash">
+      <SolidColorBrush x:Key="WindowBackgroundBrush">#DEE2E8</SolidColorBrush>
+      <SolidColorBrush x:Key="CardBackgroundBrush">#FFFFFF</SolidColorBrush>
+      <SolidColorBrush x:Key="ForecastDayBackgroundBrush">#DBE0E7</SolidColorBrush>
+      <SolidColorBrush x:Key="TextPrimaryBrush">#111827</SolidColorBrush>
+      <SolidColorBrush x:Key="TextSecondaryBrush">#4B5563</SolidColorBrush>
+      <SolidColorBrush x:Key="AccentBrush">#6B7280</SolidColorBrush>
+      <SolidColorBrush x:Key="DangerBrush">#4B5563</SolidColorBrush>
+      <SolidColorBrush x:Key="WarningBrush">#6B7280</SolidColorBrush>
+      <SolidColorBrush x:Key="CompassMarkerFillBrush">#9CA3AF</SolidColorBrush>
+      <SolidColorBrush x:Key="CompassMarkerStrokeBrush">#4B5563</SolidColorBrush>
+      <BoxShadows x:Key="CardShadow">0 4 16 0 #0000001F</BoxShadows>
+      <x:String x:Key="StatusInfoColor">#4B5563</x:String>
+      <x:String x:Key="StatusErrorColor">#374151</x:String>
+      <SolidColorBrush x:Key="StatusConnectedBrush">#6B7280</SolidColorBrush>
+      <SolidColorBrush x:Key="StatusDisconnectedBrush">#4B5563</SolidColorBrush>
+      <SolidColorBrush x:Key="StatusUnknownBrush">#9CA3AF</SolidColorBrush>
+    </ResourceDictionary>
+  </ResourceDictionary>
+</ResourceDictionary>

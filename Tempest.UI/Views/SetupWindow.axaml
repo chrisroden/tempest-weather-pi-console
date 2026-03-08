@@ -1,0 +1,59 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Tempest.UI.ViewModels"
+        x:Class="Tempest.UI.Views.SetupWindow"
+        x:DataType="vm:SetupWindowViewModel"
+        Title="Tempest Weather Station - First Time Setup"
+        Width="600" Height="500"
+        WindowStartupLocation="CenterScreen"
+        CanResize="False"
+        Background="{DynamicResource WindowBackgroundBrush}">
+    <Grid Margin="30">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <StackPanel Grid.Row="0" Spacing="10" Margin="0,0,0,30">
+            <TextBlock Text="Welcome to Tempest Weather Station" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+            <TextBlock Text="First-time setup required. Please enter your WeatherFlow credentials below." FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
+            <TextBlock Text="You can find these values at: tempestwx.com/settings/tokens" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+        </StackPanel>
+        
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Spacing="20">
+                <StackPanel Spacing="5">
+                    <TextBlock Text="API Token *" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                    <TextBox Text="{Binding ApiToken}" Watermark="Your WeatherFlow API Token" Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource AccentBrush}" Padding="10"/>
+                    <TextBlock Text="{Binding ApiTokenError}" Foreground="{DynamicResource DangerBrush}" FontSize="11" IsVisible="{Binding HasApiTokenError}"/>
+                </StackPanel>
+                
+                <StackPanel Spacing="5">
+                    <TextBlock Text="Station ID *" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                    <TextBox Text="{Binding StationId}" Watermark="Your Station ID (e.g., 12345)" Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource AccentBrush}" Padding="10"/>
+                    <TextBlock Text="{Binding StationIdError}" Foreground="{DynamicResource DangerBrush}" FontSize="11" IsVisible="{Binding HasStationIdError}"/>
+                </StackPanel>
+                
+                <StackPanel Spacing="5">
+                    <TextBlock Text="Device ID *" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                    <TextBox Text="{Binding DeviceId}" Watermark="Your Device ID (e.g., 67890)" Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource AccentBrush}" Padding="10"/>
+                    <TextBlock Text="{Binding DeviceIdError}" Foreground="{DynamicResource DangerBrush}" FontSize="11" IsVisible="{Binding HasDeviceIdError}"/>
+                </StackPanel>
+                
+                <StackPanel Spacing="5">
+                    <TextBlock Text="Backend URL (optional)" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                    <TextBox Text="{Binding BackendUrl}" Watermark="http://localhost:5000" Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource AccentBrush}" Padding="10"/>
+                    <TextBlock Text="Leave default unless running backend on a different machine" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
+                </StackPanel>
+                
+                <TextBlock Text="{Binding StatusMessage}" Foreground="{Binding StatusColor}" FontSize="12" TextWrapping="Wrap" IsVisible="{Binding HasStatusMessage}"/>
+            </StackPanel>
+        </ScrollViewer>
+        
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,20,0,0">
+            <Button Content="Exit" Command="{Binding ExitCommand}" Background="{DynamicResource ForecastDayBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}" Padding="20,10" MinWidth="100"/>
+            <Button Content="Save &amp; Continue" Command="{Binding SaveCommand}" Background="{DynamicResource AccentBrush}" Foreground="{DynamicResource TextPrimaryBrush}" Padding="20,10" MinWidth="150" IsEnabled="{Binding !IsSaving}"/>
+        </StackPanel>
+    </Grid>
+</Window>
