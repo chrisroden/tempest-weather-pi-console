@@ -20,6 +20,160 @@ warn() { color "33" "[WARN] $*"; }
 ok() { color "32" "[ OK ] $*"; }
 err() { color "31" "[ERR ] $*"; }
 
+MODE=""
+INSTALL_ROOT=""
+SERVICE_USER=""
+BACKEND_SOURCE=""
+UI_SOURCE=""
+WEATHERFLOW_API_TOKEN=""
+WEATHERFLOW_STATION_ID=""
+WEATHERFLOW_DEVICE_ID=""
+BACKEND_PORT=""
+BACKEND_URL=""
+HEALTH_STALE_SECONDS=""
+UI_THEME=""
+ENABLE_AT_BOOT=""
+CONFIG_FILE=""
+WRITE_CONFIG_FILE=""
+AUTO_YES="no"
+DRY_RUN="no"
+
+usage() {
+  cat <<'EOF'
+Usage: install-pi.sh [options]
+
+Options:
+  --mode <backend|ui|both>
+  --install-root <path>
+  --service-user <user>
+  --backend-source <path>
+  --ui-source <path>
+  --token <weatherflow-api-token>
+  --station-id <number>
+  --device-id <number>
+  --port <number>
+  --backend-url <url>
+  --stale-threshold-seconds <number>
+  --theme <name>
+  --enable-at-boot <yes|no>
+  --config <env-file>
+  --write-config <env-file>
+  --yes
+  --dry-run
+  -h, --help
+
+When an option is omitted, the script prompts interactively.
+EOF
+}
+
+normalize_yes_no() {
+  local raw="${1:-}"
+  raw="${raw,,}"
+  case "${raw}" in
+    y|yes|true|1|on) printf "yes" ;;
+    n|no|false|0|off) printf "no" ;;
+    *) printf "" ;;
+  esac
+}
+
+parse_mode() {
+  local raw="${1:-}"
+  raw="${raw,,}"
+  case "${raw}" in
+    1|backend) printf "backend" ;;
+    2|ui) printf "ui" ;;
+    3|both) printf "both" ;;
+    *) printf "" ;;
+  esac
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --mode) MODE="${2:-}"; shift 2 ;;
+      --install-root) INSTALL_ROOT="${2:-}"; shift 2 ;;
+      --service-user) SERVICE_USER="${2:-}"; shift 2 ;;
+      --backend-source) BACKEND_SOURCE="${2:-}"; shift 2 ;;
+      --ui-source) UI_SOURCE="${2:-}"; shift 2 ;;
+      --token) WEATHERFLOW_API_TOKEN="${2:-}"; shift 2 ;;
+      --station-id) WEATHERFLOW_STATION_ID="${2:-}"; shift 2 ;;
+      --device-id) WEATHERFLOW_DEVICE_ID="${2:-}"; shift 2 ;;
+      --port) BACKEND_PORT="${2:-}"; shift 2 ;;
+      --backend-url) BACKEND_URL="${2:-}"; shift 2 ;;
+      --stale-threshold-seconds) HEALTH_STALE_SECONDS="${2:-}"; shift 2 ;;
+      --theme) UI_THEME="${2:-}"; shift 2 ;;
+      --enable-at-boot) ENABLE_AT_BOOT="${2:-}"; shift 2 ;;
+      --config) CONFIG_FILE="${2:-}"; shift 2 ;;
+      --write-config) WRITE_CONFIG_FILE="${2:-}"; shift 2 ;;
+      --yes) AUTO_YES="yes"; shift ;;
+      --dry-run) DRY_RUN="yes"; shift ;;
+      -h|--help) usage; exit 0 ;;
+      *)
+        err "Unknown argument: $1"
+        usage
+        exit 1
+        ;;
+    esac
+  done
+}
+
+load_config_file() {
+  local file_path="$1"
+  if [[ -z "${file_path}" ]]; then
+    return
+  fi
+  if [[ ! -f "${file_path}" ]]; then
+    err "Config file not found: ${file_path}"
+    exit 1
+  fi
+
+  # shellcheck disable=SC1090
+  source "${file_path}"
+
+  MODE="${MODE:-${INSTALL_MODE:-}}"
+  INSTALL_ROOT="${INSTALL_ROOT:-}"
+  SERVICE_USER="${SERVICE_USER:-}"
+  BACKEND_SOURCE="${BACKEND_SOURCE:-}"
+  UI_SOURCE="${UI_SOURCE:-}"
+  WEATHERFLOW_API_TOKEN="${WEATHERFLOW_API_TOKEN:-}"
+  WEATHERFLOW_STATION_ID="${WEATHERFLOW_STATION_ID:-}"
+  WEATHERFLOW_DEVICE_ID="${WEATHERFLOW_DEVICE_ID:-}"
+  BACKEND_PORT="${BACKEND_PORT:-}"
+  BACKEND_URL="${BACKEND_URL:-}"
+  HEALTH_STALE_SECONDS="${HEALTH_STALE_SECONDS:-}"
+  UI_THEME="${UI_THEME:-}"
+  ENABLE_AT_BOOT="${ENABLE_AT_BOOT:-}"
+}
+
+save_config_file() {
+  local out_file="$1"
+  local tmp_file
+  tmp_file="$(mktemp)"
+
+  cat >"${tmp_file}" <<EOF
+# Tempest Pi installer config
+# Keep this file private (contains API token).
+
+INSTALL_MODE='${MODE}'
+INSTALL_ROOT='${INSTALL_ROOT}'
+SERVICE_USER='${SERVICE_USER}'
+BACKEND_SOURCE='${BACKEND_SOURCE}'
+UI_SOURCE='${UI_SOURCE}'
+WEATHERFLOW_API_TOKEN='${WEATHERFLOW_API_TOKEN}'
+WEATHERFLOW_STATION_ID='${WEATHERFLOW_STATION_ID}'
+WEATHERFLOW_DEVICE_ID='${WEATHERFLOW_DEVICE_ID}'
+BACKEND_PORT='${BACKEND_PORT}'
+BACKEND_URL='${BACKEND_URL}'
+HEALTH_STALE_SECONDS='${HEALTH_STALE_SECONDS}'
+UI_THEME='${UI_THEME}'
+ENABLE_AT_BOOT='${ENABLE_AT_BOOT}'
+EOF
+
+  install -m 600 "${tmp_file}" "${out_file}"
+  rm -f "${tmp_file}"
+  ok "Wrote config file: ${out_file}"
+}
+
 require_command() {
   local cmd="$1"
   if ! command -v "${cmd}" >/dev/null 2>&1; then
@@ -207,6 +361,11 @@ write_service_file() {
 }
 
 main() {
+  parse_args "$@"
+  if [[ -n "${CONFIG_FILE}" ]]; then
+    load_config_file "${CONFIG_FILE}"
+  fi
+
   require_command systemctl
   require_command sed
   require_command cp
@@ -220,7 +379,15 @@ main() {
   info "Model: ${PI_MODEL}"
   info "Desktop detected: ${HAS_DESKTOP}"
 
-  choose_mode
+  if [[ -z "${MODE}" ]]; then
+    choose_mode
+  else
+    MODE="$(parse_mode "${MODE}")"
+    if [[ -z "${MODE}" ]]; then
+      err "Invalid mode. Use backend, ui, or both."
+      exit 1
+    fi
+  fi
 
   if [[ "${HAS_DESKTOP}" != "true" && ("${MODE}" == "ui" || "${MODE}" == "both") ]]; then
     warn "No desktop environment detected. UI service likely cannot launch."
@@ -230,39 +397,117 @@ main() {
     fi
   fi
 
-  INSTALL_ROOT="$(prompt_default "Install root" "/opt/tempest")"
-  SERVICE_USER="$(prompt_default "Service user" "${SUDO_USER:-${USER}}")"
+  if [[ -z "${INSTALL_ROOT}" ]]; then
+    if [[ "${AUTO_YES}" == "yes" ]]; then
+      INSTALL_ROOT="/opt/tempest"
+    else
+      INSTALL_ROOT="$(prompt_default "Install root" "/opt/tempest")"
+    fi
+  fi
+  if [[ -z "${SERVICE_USER}" ]]; then
+    if [[ "${AUTO_YES}" == "yes" ]]; then
+      SERVICE_USER="${SUDO_USER:-${USER}}"
+    else
+      SERVICE_USER="$(prompt_default "Service user" "${SUDO_USER:-${USER}}")"
+    fi
+  fi
 
   BACKEND_SOURCE_DEFAULT="${REPO_ROOT}/publish/backend"
   UI_SOURCE_DEFAULT="${REPO_ROOT}/publish/ui"
-  BACKEND_SOURCE="$(prompt_default "Backend publish directory" "${BACKEND_SOURCE_DEFAULT}")"
-  UI_SOURCE="$(prompt_default "UI publish directory" "${UI_SOURCE_DEFAULT}")"
+  if [[ -z "${BACKEND_SOURCE}" ]]; then
+    if [[ "${AUTO_YES}" == "yes" ]]; then
+      BACKEND_SOURCE="${BACKEND_SOURCE_DEFAULT}"
+    else
+      BACKEND_SOURCE="$(prompt_default "Backend publish directory" "${BACKEND_SOURCE_DEFAULT}")"
+    fi
+  fi
+  if [[ -z "${UI_SOURCE}" ]]; then
+    if [[ "${AUTO_YES}" == "yes" ]]; then
+      UI_SOURCE="${UI_SOURCE_DEFAULT}"
+    else
+      UI_SOURCE="$(prompt_default "UI publish directory" "${UI_SOURCE_DEFAULT}")"
+    fi
+  fi
 
-  WEATHERFLOW_API_TOKEN="$(prompt_secret "WeatherFlow API token")"
+  if [[ -z "${WEATHERFLOW_API_TOKEN}" ]]; then
+    if [[ "${AUTO_YES}" == "yes" ]]; then
+      err "WeatherFlow API token is required when using --yes."
+      exit 1
+    fi
+    WEATHERFLOW_API_TOKEN="$(prompt_secret "WeatherFlow API token")"
+  fi
   require_non_empty "WeatherFlow API token" "${WEATHERFLOW_API_TOKEN}"
-  WEATHERFLOW_STATION_ID="$(prompt_default "WeatherFlow station ID" "0")"
+  if [[ -z "${WEATHERFLOW_STATION_ID}" ]]; then
+    if [[ "${AUTO_YES}" == "yes" ]]; then
+      WEATHERFLOW_STATION_ID="0"
+    else
+      WEATHERFLOW_STATION_ID="$(prompt_default "WeatherFlow station ID" "0")"
+    fi
+  fi
   validate_numeric "WeatherFlow station ID" "${WEATHERFLOW_STATION_ID}"
 
-  WEATHERFLOW_DEVICE_ID="0"
   if [[ "${MODE}" == "backend" || "${MODE}" == "both" ]]; then
-    WEATHERFLOW_DEVICE_ID="$(prompt_default "WeatherFlow device ID" "0")"
+    if [[ -z "${WEATHERFLOW_DEVICE_ID}" ]]; then
+      if [[ "${AUTO_YES}" == "yes" ]]; then
+        WEATHERFLOW_DEVICE_ID="0"
+      else
+        WEATHERFLOW_DEVICE_ID="$(prompt_default "WeatherFlow device ID" "0")"
+      fi
+    fi
     validate_numeric "WeatherFlow device ID" "${WEATHERFLOW_DEVICE_ID}"
+  else
+    WEATHERFLOW_DEVICE_ID="0"
   fi
 
-  BACKEND_PORT="$(prompt_default "Backend HTTP port" "5000")"
+  if [[ -z "${BACKEND_PORT}" ]]; then
+    if [[ "${AUTO_YES}" == "yes" ]]; then
+      BACKEND_PORT="5000"
+    else
+      BACKEND_PORT="$(prompt_default "Backend HTTP port" "5000")"
+    fi
+  fi
   validate_numeric "Backend HTTP port" "${BACKEND_PORT}"
-  BACKEND_URL="$(prompt_default "UI backend URL" "http://localhost:${BACKEND_PORT}")"
-  HEALTH_STALE_SECONDS="$(prompt_default "Stale stream threshold seconds" "15")"
+  if [[ -z "${BACKEND_URL}" ]]; then
+    if [[ "${AUTO_YES}" == "yes" ]]; then
+      BACKEND_URL="http://localhost:${BACKEND_PORT}"
+    else
+      BACKEND_URL="$(prompt_default "UI backend URL" "http://localhost:${BACKEND_PORT}")"
+    fi
+  fi
+  if [[ -z "${HEALTH_STALE_SECONDS}" ]]; then
+    if [[ "${AUTO_YES}" == "yes" ]]; then
+      HEALTH_STALE_SECONDS="15"
+    else
+      HEALTH_STALE_SECONDS="$(prompt_default "Stale stream threshold seconds" "15")"
+    fi
+  fi
   validate_numeric "Stale stream threshold seconds" "${HEALTH_STALE_SECONDS}"
 
-  UI_THEME="Default"
   if [[ "${MODE}" == "ui" || "${MODE}" == "both" ]]; then
-    UI_THEME="$(prompt_default "UI theme name" "Default")"
+    if [[ -z "${UI_THEME}" ]]; then
+      if [[ "${AUTO_YES}" == "yes" ]]; then
+        UI_THEME="Default"
+      else
+        UI_THEME="$(prompt_default "UI theme name" "Default")"
+      fi
+    fi
+  else
+    UI_THEME="${UI_THEME:-Default}"
   fi
 
-  ENABLE_AT_BOOT="no"
-  if prompt_yes_no "Enable services at boot" "yes"; then
+  if [[ -n "${ENABLE_AT_BOOT}" ]]; then
+    ENABLE_AT_BOOT="$(normalize_yes_no "${ENABLE_AT_BOOT}")"
+    if [[ -z "${ENABLE_AT_BOOT}" ]]; then
+      err "Invalid --enable-at-boot value. Use yes or no."
+      exit 1
+    fi
+  elif [[ "${AUTO_YES}" == "yes" ]]; then
     ENABLE_AT_BOOT="yes"
+  else
+    ENABLE_AT_BOOT="no"
+    if prompt_yes_no "Enable services at boot" "yes"; then
+      ENABLE_AT_BOOT="yes"
+    fi
   fi
 
   SERVICE_HOME="$(getent passwd "${SERVICE_USER}" | cut -d: -f6 || true)"
@@ -301,9 +546,20 @@ main() {
   printf "  UI source: %s\n" "${UI_SOURCE}"
   printf "  Boot enabled: %s\n" "${ENABLE_AT_BOOT}"
 
-  if ! prompt_yes_no "Proceed with install" "yes"; then
-    err "Aborted."
-    exit 1
+  if [[ "${AUTO_YES}" != "yes" ]]; then
+    if ! prompt_yes_no "Proceed with install" "yes"; then
+      err "Aborted."
+      exit 1
+    fi
+  fi
+
+  if [[ -n "${WRITE_CONFIG_FILE}" ]]; then
+    save_config_file "${WRITE_CONFIG_FILE}"
+  fi
+
+  if [[ "${DRY_RUN}" == "yes" ]]; then
+    ok "Dry run complete. No filesystem or service changes were made."
+    exit 0
   fi
 
   ${SUDO} install -d -m 755 "${INSTALL_ROOT}" "${INSTALL_ROOT}/backend" "${INSTALL_ROOT}/ui" "${INSTALL_ROOT}/config"

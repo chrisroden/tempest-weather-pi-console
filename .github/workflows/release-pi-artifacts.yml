@@ -1,0 +1,58 @@
+name: Release Pi Artifacts
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-artifacts:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rid:
+          - linux-arm64
+          - linux-arm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Restore
+        run: dotnet restore TempestConsole.sln
+
+      - name: Publish backend
+        run: dotnet publish TempestBlazorApp/TempestBlazorApp.csproj -c Release -r ${{ matrix.rid }} --self-contained -o publish/backend/${{ matrix.rid }}
+
+      - name: Publish UI
+        run: dotnet publish Tempest.UI/Tempest.UI.csproj -c Release -r ${{ matrix.rid }} --self-contained -o publish/ui/${{ matrix.rid }}
+
+      - name: Create tarballs
+        run: |
+          mkdir -p dist
+          tar -czf dist/tempest-backend-${{ matrix.rid }}.tar.gz -C publish/backend/${{ matrix.rid }} .
+          tar -czf dist/tempest-ui-${{ matrix.rid }}.tar.gz -C publish/ui/${{ matrix.rid }} .
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pi-release-${{ matrix.rid }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+      - name: Create or update GitHub release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.tar.gz
+          generate_release_notes: true

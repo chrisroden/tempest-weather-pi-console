@@ -2,6 +2,33 @@
 
 > Quick start: for most installs, use the interactive installer documented in `Wiki/Install-on-Raspberry-Pi.md`.
 
+## Quick Path (Recommended)
+
+If your goal is fast, repeatable installation, use the Pi scripts first and only use the rest of this document for advanced manual troubleshooting.
+
+From repo root on the Pi:
+
+```bash
+chmod +x scripts/pi/*.sh
+./scripts/pi/bootstrap-pi.sh
+./scripts/pi/smoke-test-pi.sh
+```
+
+Unattended variant:
+
+```bash
+cp scripts/pi/install.env.example scripts/pi/install.env
+chmod 600 scripts/pi/install.env
+./scripts/pi/bootstrap-pi.sh --config scripts/pi/install.env --yes
+./scripts/pi/smoke-test-pi.sh
+```
+
+For desktop installs where UI is required, run:
+
+```bash
+./scripts/pi/smoke-test-pi.sh --mode both
+```
+
 ## Prerequisites
 
 - Raspberry Pi (tested on Pi 3B+/4/5)
