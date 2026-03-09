@@ -7,6 +7,8 @@ WORK_ROOT="${REPO_ROOT}"
 PUBLISH_ROOT="${WORK_ROOT}/publish"
 HAS_REPO_LAYOUT="false"
 INSTALLER_URL="${INSTALLER_URL:-https://raw.githubusercontent.com/chrisroden/tempest-weather-pi-console/main/scripts/pi/install-pi.sh}"
+BACKEND_TEMPLATE_URL="${BACKEND_TEMPLATE_URL:-https://raw.githubusercontent.com/chrisroden/tempest-weather-pi-console/main/scripts/pi/systemd/tempest-backend.service.template}"
+UI_TEMPLATE_URL="${UI_TEMPLATE_URL:-https://raw.githubusercontent.com/chrisroden/tempest-weather-pi-console/main/scripts/pi/systemd/tempest-ui.service.template}"
 
 SUDO=""
 if [[ "${EUID}" -ne 0 ]]; then
@@ -72,8 +74,7 @@ Bootstrap options:
 All unknown args are passed through to install-pi.sh.
 
 Notes:
-  - In no-clone mode, place bootstrap-pi.sh and install-pi.sh in the same folder.
-  - If install-pi.sh is missing, bootstrap will attempt to download it automatically.
+  - In no-clone mode, bootstrap auto-downloads missing install and systemd template files.
 EOF
 }
 
@@ -243,11 +244,33 @@ ensure_installer() {
   ok "Downloaded install-pi.sh"
 }
 
+ensure_systemd_templates() {
+  local systemd_dir backend_tpl ui_tpl
+  systemd_dir="${SCRIPT_DIR}/systemd"
+  backend_tpl="${systemd_dir}/tempest-backend.service.template"
+  ui_tpl="${systemd_dir}/tempest-ui.service.template"
+
+  mkdir -p "${systemd_dir}"
+
+  if [[ ! -f "${backend_tpl}" ]]; then
+    warn "Missing backend service template; downloading..."
+    curl -fsSL "${BACKEND_TEMPLATE_URL}" -o "${backend_tpl}"
+    ok "Downloaded tempest-backend.service.template"
+  fi
+
+  if [[ ! -f "${ui_tpl}" ]]; then
+    warn "Missing UI service template; downloading..."
+    curl -fsSL "${UI_TEMPLATE_URL}" -o "${ui_tpl}"
+    ok "Downloaded tempest-ui.service.template"
+  fi
+}
+
 run_installer() {
   local installer
   installer="${SCRIPT_DIR}/install-pi.sh"
 
   ensure_installer
+  ensure_systemd_templates
 
   info "Running install-pi.sh..."
   "${installer}" \
