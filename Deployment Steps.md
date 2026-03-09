@@ -1,6 +1,6 @@
 # Tempest Weather Station - Complete Raspberry Pi Setup Guide
 
-> Quick start: for most installs, use the interactive installer documented in `Wiki/Install-on-Raspberry-Pi.md`.
+> Quick start: for most installs, use the interactive installer in the GitHub Wiki: https://github.com/chrisroden/tempest-weather-pi-console/wiki/Install-on-Raspberry-Pi
 
 ## Quick Path (Recommended)
 
