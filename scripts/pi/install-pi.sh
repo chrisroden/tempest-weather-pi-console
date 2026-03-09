@@ -20,6 +20,23 @@ warn() { color "33" "[WARN] $*"; }
 ok() { color "32" "[ OK ] $*"; }
 err() { color "31" "[ERR ] $*"; }
 
+run_with_heartbeat() {
+  local label="$1"
+  shift
+
+  info "${label}"
+  "$@" &
+  local pid=$!
+
+  while kill -0 "${pid}" >/dev/null 2>&1; do
+    printf "."
+    sleep 2
+  done
+  printf "\n"
+
+  wait "${pid}"
+}
+
 MODE=""
 INSTALL_ROOT=""
 SERVICE_USER=""
@@ -634,14 +651,22 @@ main() {
   fi
 
   printf "\nService status:\n"
+  info "Gathering service status (this can take a few minutes on first run)..."
+
   if [[ "${MODE}" == "backend" || "${MODE}" == "both" ]]; then
+    info "Checking backend service status..."
     ${SUDO} systemctl --no-pager --full status tempest-backend.service | sed -n '1,12p' || true
-    curl -fsS "http://localhost:${BACKEND_PORT}/health" || warn "Backend /health check failed."
+    if ! run_with_heartbeat "Waiting for backend /health response" curl --max-time 180 -fsS "http://localhost:${BACKEND_PORT}/health"; then
+      warn "Backend /health check failed or timed out."
+    fi
   fi
 
   if [[ "${MODE}" == "ui" || "${MODE}" == "both" ]]; then
+    info "Checking UI service status..."
     ${SUDO} systemctl --no-pager --full status tempest-ui.service | sed -n '1,12p' || true
   fi
+
+  ok "Service status check complete."
 
   ok "Install complete."
   printf "\nUseful commands:\n"
