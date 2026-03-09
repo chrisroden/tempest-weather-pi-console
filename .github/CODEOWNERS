@@ -1,0 +1,12 @@
+# Default owner for all files
+* @chrisroden
+
+# Require explicit review on CI and deployment automation
+.github/workflows/** @chrisroden
+scripts/pi/** @chrisroden
+
+# Core application projects
+Tempest.UI/** @chrisroden
+Tempest.WebSocket/** @chrisroden
+Tempest.REST/** @chrisroden
+TempestBlazorApp/** @chrisroden

@@ -64,3 +64,7 @@ Before opening a PR, verify all items below:
 - Prefer explicit, readable code over clever shortcuts.
 - Add tests for bug fixes and feature changes.
 - Keep public docs and wiki content aligned with behavior.
+
+## Contribution License Expectation
+
+By submitting a contribution to this repository, you agree your contribution is provided under the same MIT License as this project.
