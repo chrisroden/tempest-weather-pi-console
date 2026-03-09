@@ -38,12 +38,12 @@ It is not a generic weather app and requires:
 
 ## Start Here
 
-- [Install on Raspberry Pi](Install-on-Raspberry-Pi.md)
-- [App Overview and Features](App-Overview.md)
-- [Required Hardware (Tempest, Raspberry Pi, Display)](Hardware-Requirements.md)
-- [Screenshots](Screenshots.md)
-- [Quick Tour (Annotated UI Walkthrough)](Quick-Tour.md)
-- [Icon Legend](images/icons/README.md)
+- [Install on Raspberry Pi](Install-on-Raspberry-Pi)
+- [App Overview and Features](App-Overview)
+- [Required Hardware (Tempest, Raspberry Pi, Display)](Hardware-Requirements)
+- [Screenshots](Screenshots)
+- [Quick Tour (Annotated UI Walkthrough)](Quick-Tour)
+- [Icon Legend](Icon-Legend)
 
 ## Additional Deployment Details
 

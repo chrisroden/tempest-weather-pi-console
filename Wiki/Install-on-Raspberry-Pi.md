@@ -4,9 +4,9 @@ This project includes an interactive installer that detects Raspberry Pi OS flav
 
 Before installing, review:
 
-- [App Overview and Features](App-Overview.md)
-- [Required Hardware (Tempest, Raspberry Pi, Display)](Hardware-Requirements.md)
-- [Screenshots](Screenshots.md)
+- [App Overview and Features](App-Overview)
+- [Required Hardware (Tempest, Raspberry Pi, Display)](Hardware-Requirements)
+- [Screenshots](Screenshots)
 
 ## Quickstart (Recommended)
 

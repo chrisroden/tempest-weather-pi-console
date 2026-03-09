@@ -72,11 +72,11 @@ Caption: Theme selection menu in focus.
 
 For the complete icon catalog with consistent sizing and descriptions, see:
 
-- [Icon Legend](images/icons/README.md)
+- [Icon Legend](Icon-Legend)
 
 ## Related
 
-- [App Overview and Features](App-Overview.md)
-- [Install on Raspberry Pi](Install-on-Raspberry-Pi.md)
-- [Quick Tour (Annotated UI Walkthrough)](Quick-Tour.md)
-- [Icon Legend](images/icons/README.md)
+- [App Overview and Features](App-Overview)
+- [Install on Raspberry Pi](Install-on-Raspberry-Pi)
+- [Quick Tour (Annotated UI Walkthrough)](Quick-Tour)
+- [Icon Legend](Icon-Legend)
