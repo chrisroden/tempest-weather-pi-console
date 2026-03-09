@@ -3,6 +3,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+WORK_ROOT="${REPO_ROOT}"
+PUBLISH_ROOT="${WORK_ROOT}/publish"
+HAS_REPO_LAYOUT="false"
+INSTALLER_URL="${INSTALLER_URL:-https://raw.githubusercontent.com/chrisroden/tempest-weather-pi-console/main/scripts/pi/install-pi.sh}"
 
 SUDO=""
 if [[ "${EUID}" -ne 0 ]]; then
@@ -19,6 +23,32 @@ info() { color "36" "[INFO] $*"; }
 warn() { color "33" "[WARN] $*"; }
 ok() { color "32" "[ OK ] $*"; }
 err() { color "31" "[ERR ] $*"; }
+
+run_with_spinner() {
+  local label="$1"
+  shift
+
+  info "${label}"
+  "$@" &
+  local pid=$!
+  local spin='|/-\\'
+  local i=0
+
+  while kill -0 "${pid}" >/dev/null 2>&1; do
+    i=$(( (i + 1) % 4 ))
+    printf "\r\033[36m[INFO] %s... %c\033[0m" "${label}" "${spin:${i}:1}"
+    sleep 0.2
+  done
+
+  wait "${pid}"
+  local rc=$?
+  if [[ ${rc} -ne 0 ]]; then
+    printf "\r\033[31m[ERR ] %s failed.\033[0m\n" "${label}"
+    return "${rc}"
+  fi
+
+  printf "\r\033[32m[ OK ] %s complete.\033[0m\n" "${label}"
+}
 
 BUILD_LOCAL="yes"
 DOWNLOAD_RELEASE="no"
@@ -40,7 +70,23 @@ Bootstrap options:
   -h, --help
 
 All unknown args are passed through to install-pi.sh.
+
+Notes:
+  - In no-clone mode, place bootstrap-pi.sh and install-pi.sh in the same folder.
+  - If install-pi.sh is missing, bootstrap will attempt to download it automatically.
 EOF
+}
+
+detect_layout() {
+  if [[ -f "${REPO_ROOT}/TempestBlazorApp/TempestBlazorApp.csproj" && -f "${REPO_ROOT}/Tempest.UI/Tempest.UI.csproj" ]]; then
+    HAS_REPO_LAYOUT="true"
+    WORK_ROOT="${REPO_ROOT}"
+  else
+    HAS_REPO_LAYOUT="false"
+    WORK_ROOT="${SCRIPT_DIR}"
+  fi
+
+  PUBLISH_ROOT="${WORK_ROOT}/publish"
 }
 
 require_command() {
@@ -134,8 +180,8 @@ install_prereqs() {
     curl -fsSL https://dot.net/v1/dotnet-install.sh -o "${dotnet_install}"
     chmod +x "${dotnet_install}"
     ${SUDO} mkdir -p /usr/share/dotnet
-    ${SUDO} "${dotnet_install}" --channel 9.0 --runtime dotnet --install-dir /usr/share/dotnet
-    ${SUDO} "${dotnet_install}" --channel 9.0 --install-dir /usr/share/dotnet
+    run_with_spinner "Installing .NET runtime" ${SUDO} "${dotnet_install}" --channel 9.0 --runtime dotnet --install-dir /usr/share/dotnet
+    run_with_spinner "Installing .NET SDK" ${SUDO} "${dotnet_install}" --channel 9.0 --install-dir /usr/share/dotnet
     ${SUDO} ln -sf /usr/share/dotnet/dotnet /usr/bin/dotnet
     rm -f "${dotnet_install}"
   fi
@@ -144,13 +190,18 @@ install_prereqs() {
 }
 
 prepare_publish_dirs() {
-  mkdir -p "${REPO_ROOT}/publish/backend" "${REPO_ROOT}/publish/ui"
+  mkdir -p "${PUBLISH_ROOT}/backend" "${PUBLISH_ROOT}/ui"
 }
 
 build_local_artifacts() {
+  if [[ "${HAS_REPO_LAYOUT}" != "true" ]]; then
+    err "--build-local requires cloned repository layout. Run from repo root, or use --download-release in standalone mode."
+    exit 1
+  fi
+
   info "Publishing backend and UI locally for ${RID}..."
-  dotnet publish "${REPO_ROOT}/TempestBlazorApp/TempestBlazorApp.csproj" -c Release -r "${RID}" --self-contained -o "${REPO_ROOT}/publish/backend"
-  dotnet publish "${REPO_ROOT}/Tempest.UI/Tempest.UI.csproj" -c Release -r "${RID}" --self-contained -o "${REPO_ROOT}/publish/ui"
+  dotnet publish "${REPO_ROOT}/TempestBlazorApp/TempestBlazorApp.csproj" -c Release -r "${RID}" --self-contained -o "${PUBLISH_ROOT}/backend"
+  dotnet publish "${REPO_ROOT}/Tempest.UI/Tempest.UI.csproj" -c Release -r "${RID}" --self-contained -o "${PUBLISH_ROOT}/ui"
 }
 
 download_release_artifacts() {
@@ -168,37 +219,52 @@ download_release_artifacts() {
   info "Downloading UI archive..."
   curl -fL "${UI_ARCHIVE_URL}" -o "${tmp_ui}"
 
-  rm -rf "${REPO_ROOT}/publish/backend" "${REPO_ROOT}/publish/ui"
-  mkdir -p "${REPO_ROOT}/publish/backend" "${REPO_ROOT}/publish/ui"
+  rm -rf "${PUBLISH_ROOT}/backend" "${PUBLISH_ROOT}/ui"
+  mkdir -p "${PUBLISH_ROOT}/backend" "${PUBLISH_ROOT}/ui"
 
-  tar -xzf "${tmp_backend}" -C "${REPO_ROOT}/publish/backend"
-  tar -xzf "${tmp_ui}" -C "${REPO_ROOT}/publish/ui"
+  tar -xzf "${tmp_backend}" -C "${PUBLISH_ROOT}/backend"
+  tar -xzf "${tmp_ui}" -C "${PUBLISH_ROOT}/ui"
 
   rm -f "${tmp_backend}" "${tmp_ui}"
+}
+
+ensure_installer() {
+  local installer
+  installer="${SCRIPT_DIR}/install-pi.sh"
+
+  if [[ -f "${installer}" ]]; then
+    chmod +x "${installer}"
+    return
+  fi
+
+  warn "install-pi.sh not found next to bootstrap script; attempting download..."
+  curl -fsSL "${INSTALLER_URL}" -o "${installer}"
+  chmod +x "${installer}"
+  ok "Downloaded install-pi.sh"
 }
 
 run_installer() {
   local installer
   installer="${SCRIPT_DIR}/install-pi.sh"
 
-  if [[ ! -x "${installer}" ]]; then
-    chmod +x "${installer}"
-  fi
+  ensure_installer
 
   info "Running install-pi.sh..."
   "${installer}" \
-    --backend-source "${REPO_ROOT}/publish/backend" \
-    --ui-source "${REPO_ROOT}/publish/ui" \
+    --backend-source "${PUBLISH_ROOT}/backend" \
+    --ui-source "${PUBLISH_ROOT}/ui" \
     "${INSTALL_ARGS[@]}"
 }
 
 main() {
   parse_args "$@"
+  detect_layout
   detect_platform
 
   info "Detected OS: ${OS_PRETTY}"
   info "Architecture: ${ARCH} (RID ${RID})"
   info "Desktop detected: ${HAS_DESKTOP}"
+  info "Working root: ${WORK_ROOT}"
   if [[ -n "${CONFIG_FILE}" && ! -f "${CONFIG_FILE}" ]]; then
     err "Config file not found: ${CONFIG_FILE}"
     exit 1
