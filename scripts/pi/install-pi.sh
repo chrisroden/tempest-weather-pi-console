@@ -54,12 +54,17 @@ CONFIG_FILE=""
 WRITE_CONFIG_FILE=""
 AUTO_YES="no"
 DRY_RUN="no"
+CMD="install"
+RELEASE_VERSION=""
+BACKEND_ARCHIVE_URL=""
+UI_ARCHIVE_URL=""
+GITHUB_REPO="chrisroden/tempest-weather-pi-console"
 
 usage() {
   cat <<'EOF'
 Usage: install-pi.sh [options]
 
-Options:
+Install options:
   --mode <backend|ui|both>
   --install-root <path>
   --service-user <user>
@@ -73,13 +78,24 @@ Options:
   --stale-threshold-seconds <number>
   --theme <name>
   --enable-at-boot <yes|no>
+  --release-version <tag>      Version tag written to VERSION file (default: dev-<timestamp>)
   --config <env-file>
   --write-config <env-file>
   --yes
   --dry-run
   -h, --help
 
-When an option is omitted, the script prompts interactively.
+Update options:
+  --update                     Check GitHub for a newer release and apply it if available
+  --install-root <path>        Where Tempest is installed (default: /opt/tempest)
+  --backend-archive-url <url>  Override auto-detected backend asset URL
+  --ui-archive-url <url>       Override auto-detected UI asset URL
+  --yes                        Apply update without prompting
+
+  Expected GitHub release asset names: backend-linux-arm64.tar.gz, ui-linux-arm64.tar.gz
+  (or ...-linux-arm.tar.gz for 32-bit). Override with --backend-archive-url / --ui-archive-url.
+
+When an install option is omitted, the script prompts interactively.
 EOF
 }
 
@@ -124,6 +140,10 @@ parse_args() {
       --write-config) WRITE_CONFIG_FILE="${2:-}"; shift 2 ;;
       --yes) AUTO_YES="yes"; shift ;;
       --dry-run) DRY_RUN="yes"; shift ;;
+      --update) CMD="update"; shift ;;
+      --release-version) RELEASE_VERSION="${2:-}"; shift 2 ;;
+      --backend-archive-url) BACKEND_ARCHIVE_URL="${2:-}"; shift 2 ;;
+      --ui-archive-url) UI_ARCHIVE_URL="${2:-}"; shift 2 ;;
       -h|--help) usage; exit 0 ;;
       *)
         err "Unknown argument: $1"
@@ -281,6 +301,12 @@ detect_platform() {
     trixie) OS_TRACK="current" ;;
   esac
 
+  case "${ARCH}" in
+    arm64|aarch64) RID="linux-arm64" ;;
+    armhf|armv7l)  RID="linux-arm" ;;
+    *) warn "Unknown architecture ${ARCH}; defaulting RID to linux-arm64"; RID="linux-arm64" ;;
+  esac
+
   if [[ "${OS_ID}" != "raspbian" && "${OS_ID}" != "debian" ]]; then
     warn "This installer is tuned for Raspberry Pi OS (Debian-based). Detected ID=${OS_ID}."
   fi
@@ -377,10 +403,209 @@ write_service_file() {
     "${template_file}" | ${SUDO} tee "${out_file}" >/dev/null
 }
 
+read_installed_service_user() {
+  local svc_file="/etc/systemd/system/tempest-backend.service"
+  if [[ ! -f "${svc_file}" ]]; then
+    svc_file="/etc/systemd/system/tempest-ui.service"
+  fi
+  if [[ -f "${svc_file}" ]]; then
+    grep -E '^User=' "${svc_file}" | cut -d= -f2 | head -1
+  fi
+}
+
+run_update() {
+  require_command curl
+  require_command jq
+
+  if [[ -z "${INSTALL_ROOT}" ]]; then
+    INSTALL_ROOT="/opt/tempest"
+  fi
+
+  if [[ -z "${SERVICE_USER}" ]]; then
+    SERVICE_USER="$(read_installed_service_user || true)"
+    if [[ -z "${SERVICE_USER}" ]]; then
+      SERVICE_USER="${SUDO_USER:-${USER}}"
+    fi
+  fi
+
+  # Determine which components are installed
+  if [[ -z "${MODE}" ]]; then
+    local has_backend="false"
+    local has_ui="false"
+    [[ -f "${INSTALL_ROOT}/backend/TempestBlazorApp" ]] && has_backend="true"
+    [[ -f "${INSTALL_ROOT}/ui/Tempest.UI"            ]] && has_ui="true"
+    if [[ "${has_backend}" == "true" && "${has_ui}" == "true" ]]; then
+      MODE="both"
+    elif [[ "${has_backend}" == "true" ]]; then
+      MODE="backend"
+    elif [[ "${has_ui}" == "true" ]]; then
+      MODE="ui"
+    else
+      err "Could not detect installed components under ${INSTALL_ROOT}."
+      err "Use --install-root to point at the correct install directory."
+      exit 1
+    fi
+  fi
+
+  # Read installed version
+  local installed_version="unknown"
+  local version_file="${INSTALL_ROOT}/VERSION"
+  if [[ -f "${version_file}" ]]; then
+    installed_version="$(cat "${version_file}")"
+  fi
+  info "Installed version : ${installed_version}"
+
+  # Fetch latest GitHub release
+  info "Checking GitHub for latest release..."
+  local api_url="https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
+  local release_json
+  if ! release_json="$(curl -fsSL "${api_url}" 2>/dev/null)"; then
+    err "Failed to reach GitHub API at ${api_url}"
+    exit 1
+  fi
+
+  local latest_tag
+  latest_tag="$(printf '%s' "${release_json}" | jq -r '.tag_name // empty')"
+  if [[ -z "${latest_tag}" ]]; then
+    err "No published releases found for ${GITHUB_REPO}."
+    exit 1
+  fi
+  info "Latest release     : ${latest_tag}"
+
+  if [[ "${installed_version}" == "${latest_tag}" ]]; then
+    ok "Already on the latest version (${installed_version})."
+    exit 0
+  fi
+
+  info "Update available: ${installed_version} → ${latest_tag}"
+
+  if [[ "${DRY_RUN}" == "yes" ]]; then
+    ok "Dry run: would update ${installed_version} → ${latest_tag} (mode: ${MODE})."
+    exit 0
+  fi
+
+  if [[ "${AUTO_YES}" != "yes" ]]; then
+    if ! prompt_yes_no "Apply update to ${latest_tag}" "yes"; then
+      err "Aborted."
+      exit 1
+    fi
+  fi
+
+  detect_platform
+
+  # Resolve asset download URLs
+  if [[ -z "${BACKEND_ARCHIVE_URL}" && ("${MODE}" == "backend" || "${MODE}" == "both") ]]; then
+    BACKEND_ARCHIVE_URL="$(printf '%s' "${release_json}" | jq -r --arg rid "${RID}" \
+      '.assets[] | select(.name | test("backend.*" + $rid; "i")) | .browser_download_url' | head -1)"
+    if [[ -z "${BACKEND_ARCHIVE_URL}" ]]; then
+      err "No backend asset found for ${RID} in release ${latest_tag}."
+      err "Expected an asset whose name matches: backend.*${RID} (e.g. backend-${RID}.tar.gz)"
+      err "Override with: --backend-archive-url <url>"
+      exit 1
+    fi
+  fi
+
+  if [[ -z "${UI_ARCHIVE_URL}" && ("${MODE}" == "ui" || "${MODE}" == "both") ]]; then
+    UI_ARCHIVE_URL="$(printf '%s' "${release_json}" | jq -r --arg rid "${RID}" \
+      '.assets[] | select(.name | test("ui.*" + $rid; "i")) | .browser_download_url' | head -1)"
+    if [[ -z "${UI_ARCHIVE_URL}" ]]; then
+      err "No UI asset found for ${RID} in release ${latest_tag}."
+      err "Expected an asset whose name matches: ui.*${RID} (e.g. ui-${RID}.tar.gz)"
+      err "Override with: --ui-archive-url <url>"
+      exit 1
+    fi
+  fi
+
+  # Stop services before swapping binaries
+  if [[ "${MODE}" == "backend" || "${MODE}" == "both" ]]; then
+    info "Stopping tempest-backend..."
+    ${SUDO} systemctl stop tempest-backend.service || true
+  fi
+  if [[ "${MODE}" == "ui" || "${MODE}" == "both" ]]; then
+    info "Stopping tempest-ui..."
+    ${SUDO} systemctl stop tempest-ui.service || true
+  fi
+
+  local tmp_dir
+  tmp_dir="$(mktemp -d)"
+
+  # Download and extract new binaries
+  if [[ "${MODE}" == "backend" || "${MODE}" == "both" ]]; then
+    local tmp_backend_archive
+    tmp_backend_archive="$(mktemp)"
+    info "Downloading backend archive..."
+    curl -fL "${BACKEND_ARCHIVE_URL}" -o "${tmp_backend_archive}"
+    mkdir -p "${tmp_dir}/backend"
+    tar -xzf "${tmp_backend_archive}" -C "${tmp_dir}/backend"
+    rm -f "${tmp_backend_archive}"
+  fi
+
+  if [[ "${MODE}" == "ui" || "${MODE}" == "both" ]]; then
+    local tmp_ui_archive
+    tmp_ui_archive="$(mktemp)"
+    info "Downloading UI archive..."
+    curl -fL "${UI_ARCHIVE_URL}" -o "${tmp_ui_archive}"
+    mkdir -p "${tmp_dir}/ui"
+    tar -xzf "${tmp_ui_archive}" -C "${tmp_dir}/ui"
+    rm -f "${tmp_ui_archive}"
+  fi
+
+  # Swap binaries — preserve appsettings files so runtime config (theme, etc.) is not reset
+  if [[ "${MODE}" == "backend" || "${MODE}" == "both" ]]; then
+    info "Installing updated backend..."
+    find "${INSTALL_ROOT}/backend" \
+      -not -name "appsettings*.json" \
+      -not -type d \
+      -delete 2>/dev/null || true
+    ${SUDO} cp -a "${tmp_dir}/backend/." "${INSTALL_ROOT}/backend/"
+    ${SUDO} chmod +x "${INSTALL_ROOT}/backend/TempestBlazorApp" || true
+  fi
+
+  if [[ "${MODE}" == "ui" || "${MODE}" == "both" ]]; then
+    info "Installing updated UI..."
+    find "${INSTALL_ROOT}/ui" \
+      -not -name "appsettings*.json" \
+      -not -type d \
+      -delete 2>/dev/null || true
+    ${SUDO} cp -a "${tmp_dir}/ui/." "${INSTALL_ROOT}/ui/"
+    ${SUDO} chmod +x "${INSTALL_ROOT}/ui/Tempest.UI" || true
+  fi
+
+  rm -rf "${tmp_dir}"
+
+  # Fix ownership
+  if id -u "${SERVICE_USER}" >/dev/null 2>&1; then
+    ${SUDO} chown -R "${SERVICE_USER}":"${SERVICE_USER}" "${INSTALL_ROOT}"
+  fi
+
+  # Record the new version
+  printf '%s\n' "${latest_tag}" | ${SUDO} tee "${INSTALL_ROOT}/VERSION" > /dev/null
+
+  # Restart services (no systemd re-registration needed)
+  if [[ "${MODE}" == "backend" || "${MODE}" == "both" ]]; then
+    ${SUDO} systemctl start tempest-backend.service
+  fi
+  if [[ "${MODE}" == "ui" || "${MODE}" == "both" ]]; then
+    ${SUDO} systemctl start tempest-ui.service || true
+  fi
+
+  ok "Update to ${latest_tag} complete."
+  printf "\nUseful commands:\n"
+  printf "  sudo systemctl status tempest-backend\n"
+  printf "  sudo systemctl status tempest-ui\n"
+  printf "  sudo journalctl -u tempest-backend -f\n"
+  printf "  sudo journalctl -u tempest-ui -f\n"
+}
+
 main() {
   parse_args "$@"
   if [[ -n "${CONFIG_FILE}" ]]; then
     load_config_file "${CONFIG_FILE}"
+  fi
+
+  if [[ "${CMD}" == "update" ]]; then
+    run_update
+    exit 0
   fi
 
   require_command systemctl
@@ -667,6 +892,11 @@ main() {
   fi
 
   ok "Service status check complete."
+
+  printf '%s\n' "${RELEASE_VERSION:-dev-$(date +%Y%m%d%H%M%S)}" | ${SUDO} tee "${INSTALL_ROOT}/VERSION" > /dev/null
+
+  # Keep the installer itself in INSTALL_ROOT so `sudo bash /opt/tempest/install-pi.sh --update` works
+  ${SUDO} install -m 755 "${BASH_SOURCE[0]}" "${INSTALL_ROOT}/install-pi.sh"
 
   ok "Install complete."
   printf "\nUseful commands:\n"

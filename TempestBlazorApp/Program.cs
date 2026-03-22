@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using Tempest.REST;
+using TempestBlazorApp.Services;
 using Tempest.WebSocket;
 using Tempest.WebSocket.Hubs;
 
@@ -29,6 +31,9 @@ builder.Services.AddSignalR(options =>
     options.PayloadSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
 });
 builder.Services.AddSingleton<TempestWebSocketService>();
+builder.Services.AddSingleton<TempestRESTService>();
+builder.Services.AddSingleton<ForecastCache>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<ForecastCache>());
 
 var app = builder.Build();
 

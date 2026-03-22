@@ -1,8 +1,14 @@
 @page "/"
 @using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.AspNetCore.Components
 @using Tempest.WebSocket.Models.Responses
+@using TempestBlazorApp.Services
+@using Tempest.REST.Models
+@using System.Linq
 @using System.Text.Json
+@using System.Net
 @inject NavigationManager NavigationManager
+@inject ForecastCache ForecastCache
 
 <div class="container mt-4">
     <h1 class="text-center text-primary mb-4" style="font-family: 'Arial', sans-serif; font-weight: bold;">Tempest Weather Dashboard</h1>
@@ -58,6 +64,51 @@
     </div>
 </div>
 
+<div class="container">
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card bg-light text-dark shadow-sm hover-card" style="border-color: #007bff;">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-cloud-sun me-2"></i> Forecast (6-hour refresh)
+                </div>
+                <div class="card-body">
+                    @if (_forecastSnapshot.Forecast is { } forecast)
+                    {
+                        <p class="card-text"><strong>Location:</strong> @HtmlEncode(forecast.LocationName)</p>
+                        <p class="card-text"><strong>Current Conditions:</strong> @HtmlEncode(forecast.CurrentConditions.Conditions)</p>
+                        <p class="card-text"><strong>Last Updated:</strong> @FormatUpdated(_forecastSnapshot.LastUpdatedUtc)</p>
+
+                        @if (forecast.Forecast.DailyForecasts.Count > 1)
+                        {
+                            <div class="row">
+                                @foreach (var day in forecast.Forecast.DailyForecasts.Skip(1).Take(7))
+                                {
+                                    <div class="col-sm-6 col-md-4 col-lg-3 mb-3">
+                                        <div class="border rounded p-2 h-100">
+                                            <div class="fw-bold">@FormatForecastDate(day.DayStartLocal)</div>
+                                            <div>@($"{day.AirTempLow:F0}° / {day.AirTempHigh:F0}°")</div>
+                                            <div>Precip: @day.PrecipProbability%</div>
+                                            <div>@HtmlEncode(day.Conditions)</div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="card-text">No forecast data available yet.</p>
+                        }
+                    }
+                    else
+                    {
+                        <p class="card-text">Loading forecast...</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
     .hover-card:hover {
         transform: translateY(-5px);
@@ -71,11 +122,16 @@
     private string message = "Waiting for message...";
     private RapidWind? latestRapidWind;
     private StationObservation? latestStationObservation;
+    private ForecastSnapshot _forecastSnapshot = ForecastSnapshot.Empty;
+    private System.Timers.Timer? _forecastUiTimer;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
+            _forecastSnapshot = ForecastCache.GetSnapshot();
+            StartForecastUiTimer();
+
             hubConnection = new HubConnectionBuilder()
                 .WithUrl(NavigationManager.ToAbsoluteUri("/weatherHub"))
                 .WithKeepAliveInterval(TimeSpan.FromSeconds(15))
@@ -217,10 +273,32 @@
 
     public async ValueTask DisposeAsync()
     {
+        _forecastUiTimer?.Stop();
+        _forecastUiTimer?.Dispose();
+
         if (hubConnection is not null)
         {
             await hubConnection.DisposeAsync();
         }
+    }
+
+    private void StartForecastUiTimer()
+    {
+        _forecastUiTimer = new System.Timers.Timer(TimeSpan.FromMinutes(1).TotalMilliseconds)
+        {
+            AutoReset = true
+        };
+
+        _forecastUiTimer.Elapsed += async (_, _) =>
+        {
+            await InvokeAsync(() =>
+            {
+                _forecastSnapshot = ForecastCache.GetSnapshot();
+                StateHasChanged();
+            });
+        };
+
+        _forecastUiTimer.Start();
     }
 
     private DateTime? GetObservationTime(StationObservation observation)
@@ -235,5 +313,27 @@
         return utcDateTime.HasValue
             ? DateTime.SpecifyKind(utcDateTime.Value, DateTimeKind.Utc).ToLocalTime()
             : null;
+    }
+
+    private static string FormatForecastDate(int dayStartLocal)
+    {
+        if (dayStartLocal <= 0)
+        {
+            return "--";
+        }
+
+        return DateTimeOffset.FromUnixTimeSeconds(dayStartLocal).ToLocalTime().ToString("MM/dd");
+    }
+
+    private static string FormatUpdated(DateTimeOffset? updatedUtc)
+    {
+        return updatedUtc.HasValue
+            ? updatedUtc.Value.ToLocalTime().ToString("MM/dd HH:mm")
+            : "n/a";
+    }
+
+    private static MarkupString HtmlEncode(string? value)
+    {
+        return new MarkupString(WebUtility.HtmlEncode(value ?? string.Empty));
     }
 }

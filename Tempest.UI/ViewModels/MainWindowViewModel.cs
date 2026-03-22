@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using System.Diagnostics;
+using System.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -26,9 +27,12 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
     private readonly System.Net.Http.HttpClient _diagnosticsHttpClient;
     private DateTime _lastDataReceived = DateTime.Now;
     private System.Timers.Timer? _heartbeatTimer;
+    private System.Timers.Timer? _forecastRefreshTimer;
     private bool _isAttemptingRestart = false;
     private int _restartAttempts = 0;
     private bool _connectionStateKnown;
+    private readonly int _forecastRefreshMinutes;
+    private int _forecastRefreshRunning;
     private const string HealthDiagnosticsPrefix = "Backend health:";
     private const string UnknownConnectionStatusMessage = "Connection status unknown — waiting for backend data.";
     private static string StatusInfoColor => ThemeManager.GetThemeString("StatusInfoColor", "#F7931E");
@@ -63,30 +67,37 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
     [ObservableProperty] private string _day1Temp = "--";
     [ObservableProperty] private Bitmap? _day1Icon;
     [ObservableProperty] private string _day1Precip = "0%";
+    [ObservableProperty] private string _day1Label = "--";
     
     [ObservableProperty] private string _day2Temp = "--";
     [ObservableProperty] private Bitmap? _day2Icon;
     [ObservableProperty] private string _day2Precip = "0%";
+    [ObservableProperty] private string _day2Label = "--";
     
     [ObservableProperty] private string _day3Temp = "--";
     [ObservableProperty] private Bitmap? _day3Icon;
     [ObservableProperty] private string _day3Precip = "0%";
+    [ObservableProperty] private string _day3Label = "--";
     
     [ObservableProperty] private string _day4Temp = "--";
     [ObservableProperty] private Bitmap? _day4Icon;
     [ObservableProperty] private string _day4Precip = "0%";
+    [ObservableProperty] private string _day4Label = "--";
     
     [ObservableProperty] private string _day5Temp = "--";
     [ObservableProperty] private Bitmap? _day5Icon;
     [ObservableProperty] private string _day5Precip = "0%";
+    [ObservableProperty] private string _day5Label = "--";
     
     [ObservableProperty] private string _day6Temp = "--";
     [ObservableProperty] private Bitmap? _day6Icon;
     [ObservableProperty] private string _day6Precip = "0%";
+    [ObservableProperty] private string _day6Label = "--";
     
     [ObservableProperty] private string _day7Temp = "--";
     [ObservableProperty] private Bitmap? _day7Icon;
     [ObservableProperty] private string _day7Precip = "0%";
+    [ObservableProperty] private string _day7Label = "--";
     
     // Status
     [ObservableProperty] private string _locationName = "Tempest Weather Station";
@@ -116,6 +127,7 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
             LocationName = _locationNameOverride;
         }
         _restService = new TempestRESTService(configuration);
+        _forecastRefreshMinutes = Math.Max(15, configuration.GetValue<int?>("ForecastRefreshMinutes") ?? 360);
         _diagnosticsHttpClient = new System.Net.Http.HttpClient
         {
             Timeout = TimeSpan.FromSeconds(3)
@@ -155,6 +167,9 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
         {
             // Load forecast data from REST API
             await LoadForecastData();
+
+            // Schedule forecast refreshes
+            StartForecastRefreshTimer();
             
             // Connect to SignalR hub for real-time updates
             await ConnectToSignalR();
@@ -193,6 +208,35 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
             await PollBackendHealthDetails();
         };
         _heartbeatTimer.Start();
+    }
+
+    private void StartForecastRefreshTimer()
+    {
+        _forecastRefreshTimer = new System.Timers.Timer(TimeSpan.FromMinutes(_forecastRefreshMinutes).TotalMilliseconds)
+        {
+            AutoReset = true
+        };
+
+        _forecastRefreshTimer.Elapsed += async (_, _) => await RefreshForecastDataAsync();
+        _forecastRefreshTimer.Start();
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Forecast refresh scheduled every {_forecastRefreshMinutes} minutes");
+    }
+
+    private async Task RefreshForecastDataAsync()
+    {
+        if (Interlocked.Exchange(ref _forecastRefreshRunning, 1) == 1)
+        {
+            return;
+        }
+
+        try
+        {
+            await LoadForecastData();
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _forecastRefreshRunning, 0);
+        }
     }
 
     private async Task PollBackendHealthDetails()
@@ -287,6 +331,14 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
         try
         {
             var forecast = await _restService.GetForecast();
+
+            Day1Label = "--";
+            Day2Label = "--";
+            Day3Label = "--";
+            Day4Label = "--";
+            Day5Label = "--";
+            Day6Label = "--";
+            Day7Label = "--";
             
             // For documentation screenshots, allow overriding station label via config.
             LocationName = string.IsNullOrWhiteSpace(_locationNameOverride) ? forecast.LocationName : _locationNameOverride;
@@ -356,6 +408,7 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
             if (forecast.Forecast.DailyForecasts.Count > 1)
             {
                 var day1 = forecast.Forecast.DailyForecasts[1];
+                Day1Label = FormatForecastDate(day1.DayStartLocal);
                 Day1Temp = $"{day1.AirTempLow:F0}° / {day1.AirTempHigh:F0}°";
                 Day1Icon = GetWeatherIcon(day1.Icon);
                 Day1Precip = $"{day1.PrecipProbability}%";
@@ -364,6 +417,7 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
             if (forecast.Forecast.DailyForecasts.Count > 2)
             {
                 var day2 = forecast.Forecast.DailyForecasts[2];
+                Day2Label = FormatForecastDate(day2.DayStartLocal);
                 Day2Temp = $"{day2.AirTempLow:F0}° / {day2.AirTempHigh:F0}°";
                 Day2Icon = GetWeatherIcon(day2.Icon);
                 Day2Precip = $"{day2.PrecipProbability}%";
@@ -372,6 +426,7 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
             if (forecast.Forecast.DailyForecasts.Count > 3)
             {
                 var day3 = forecast.Forecast.DailyForecasts[3];
+                Day3Label = FormatForecastDate(day3.DayStartLocal);
                 Day3Temp = $"{day3.AirTempLow:F0}° / {day3.AirTempHigh:F0}°";
                 Day3Icon = GetWeatherIcon(day3.Icon);
                 Day3Precip = $"{day3.PrecipProbability}%";
@@ -380,6 +435,7 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
             if (forecast.Forecast.DailyForecasts.Count > 4)
             {
                 var day4 = forecast.Forecast.DailyForecasts[4];
+                Day4Label = FormatForecastDate(day4.DayStartLocal);
                 Day4Temp = $"{day4.AirTempLow:F0}° / {day4.AirTempHigh:F0}°";
                 Day4Icon = GetWeatherIcon(day4.Icon);
                 Day4Precip = $"{day4.PrecipProbability}%";
@@ -388,6 +444,7 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
             if (forecast.Forecast.DailyForecasts.Count > 5)
             {
                 var day5 = forecast.Forecast.DailyForecasts[5];
+                Day5Label = FormatForecastDate(day5.DayStartLocal);
                 Day5Temp = $"{day5.AirTempLow:F0}° / {day5.AirTempHigh:F0}°";
                 Day5Icon = GetWeatherIcon(day5.Icon);
                 Day5Precip = $"{day5.PrecipProbability}%";
@@ -396,6 +453,7 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
             if (forecast.Forecast.DailyForecasts.Count > 6)
             {
                 var day6 = forecast.Forecast.DailyForecasts[6];
+                Day6Label = FormatForecastDate(day6.DayStartLocal);
                 Day6Temp = $"{day6.AirTempLow:F0}° / {day6.AirTempHigh:F0}°";
                 Day6Icon = GetWeatherIcon(day6.Icon);
                 Day6Precip = $"{day6.PrecipProbability}%";
@@ -404,6 +462,7 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
             if (forecast.Forecast.DailyForecasts.Count > 7)
             {
                 var day7 = forecast.Forecast.DailyForecasts[7];
+                Day7Label = FormatForecastDate(day7.DayStartLocal);
                 Day7Temp = $"{day7.AirTempLow:F0}° / {day7.AirTempHigh:F0}°";
                 Day7Icon = GetWeatherIcon(day7.Icon);
                 Day7Precip = $"{day7.PrecipProbability}%";
@@ -819,6 +878,16 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
+    private static string FormatForecastDate(int dayStartLocal)
+    {
+        if (dayStartLocal <= 0)
+        {
+            return "--";
+        }
+
+        return DateTimeOffset.FromUnixTimeSeconds(dayStartLocal).ToLocalTime().ToString("MM/dd");
+    }
+
     private string GetCardinalDirection(int degrees)
     {
         var directions = new[] { "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW" };
@@ -1063,6 +1132,8 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
     {
         _heartbeatTimer?.Stop();
         _heartbeatTimer?.Dispose();
+        _forecastRefreshTimer?.Stop();
+        _forecastRefreshTimer?.Dispose();
         _diagnosticsHttpClient.Dispose();
         
         if (_hubConnection != null)

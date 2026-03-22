@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Tempest.WebSocket\Tempest.WebSocket.csproj" />
+    <ProjectReference Include="..\Tempest.REST\Tempest.REST.csproj" />
   </ItemGroup>
 
   <ItemGroup>
