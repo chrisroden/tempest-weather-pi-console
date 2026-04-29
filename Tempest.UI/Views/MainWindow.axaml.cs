@@ -2,7 +2,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Visuals;
 using Avalonia.VisualTree;
 using System;
 using System.Threading.Tasks;

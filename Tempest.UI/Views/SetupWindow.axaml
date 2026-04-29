@@ -25,25 +25,25 @@
             <StackPanel Spacing="20">
                 <StackPanel Spacing="5">
                     <TextBlock Text="API Token *" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
-                    <TextBox Text="{Binding ApiToken}" Watermark="Your WeatherFlow API Token" Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource AccentBrush}" Padding="10"/>
+                    <TextBox Text="{Binding ApiToken}" PlaceholderText="Your WeatherFlow API Token" Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource AccentBrush}" Padding="10"/>
                     <TextBlock Text="{Binding ApiTokenError}" Foreground="{DynamicResource DangerBrush}" FontSize="11" IsVisible="{Binding HasApiTokenError}"/>
                 </StackPanel>
                 
                 <StackPanel Spacing="5">
                     <TextBlock Text="Station ID *" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
-                    <TextBox Text="{Binding StationId}" Watermark="Your Station ID (e.g., 12345)" Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource AccentBrush}" Padding="10"/>
+                    <TextBox Text="{Binding StationId}" PlaceholderText="Your Station ID (e.g., 12345)" Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource AccentBrush}" Padding="10"/>
                     <TextBlock Text="{Binding StationIdError}" Foreground="{DynamicResource DangerBrush}" FontSize="11" IsVisible="{Binding HasStationIdError}"/>
                 </StackPanel>
                 
                 <StackPanel Spacing="5">
                     <TextBlock Text="Device ID *" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
-                    <TextBox Text="{Binding DeviceId}" Watermark="Your Device ID (e.g., 67890)" Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource AccentBrush}" Padding="10"/>
+                    <TextBox Text="{Binding DeviceId}" PlaceholderText="Your Device ID (e.g., 67890)" Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource AccentBrush}" Padding="10"/>
                     <TextBlock Text="{Binding DeviceIdError}" Foreground="{DynamicResource DangerBrush}" FontSize="11" IsVisible="{Binding HasDeviceIdError}"/>
                 </StackPanel>
                 
                 <StackPanel Spacing="5">
                     <TextBlock Text="Backend URL (optional)" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
-                    <TextBox Text="{Binding BackendUrl}" Watermark="http://localhost:5000" Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource AccentBrush}" Padding="10"/>
+                    <TextBox Text="{Binding BackendUrl}" PlaceholderText="http://localhost:5000" Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource AccentBrush}" Padding="10"/>
                     <TextBlock Text="Leave default unless running backend on a different machine" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
                 </StackPanel>
                 

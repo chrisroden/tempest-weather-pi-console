@@ -12,7 +12,7 @@
         Width="1024"
         Height="600"
         CanResize="False"
-        SystemDecorations="None">
+        WindowDecorations="None">
 
     <Design.DataContext>
         <vm:MainWindowViewModel />
