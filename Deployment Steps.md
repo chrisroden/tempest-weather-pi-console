@@ -183,253 +183,104 @@ Exec=unclutter -idle 0.1
 X-GNOME-Autostart-enabled=true
 ```
 
-## Part 2: Build and Deploy the Application
+## Part 2: Install the Application
 
-### 1. Build for Raspberry Pi (ARM/Linux)
+The application is distributed as pre-built self-contained binaries via GitHub Releases. You do not need to build locally or copy files manually — the installer downloads everything from the latest release automatically.
 
-**On Mac/Linux:**
+### 1. Run the Installer (Interactive)
 
-```bash
-# Configure these variables for your environment
-PROJECT_PATH="/path/to/Tempest Weather Station Console"
-PI_USER="pi"
-PI_HOST="raspberrypi.local"
-BACKEND_DEPLOY="$HOME/tempest-backend-deploy"
-UI_DEPLOY="$HOME/tempest-ui-deploy"
-
-# Build the applications
-cd "$PROJECT_PATH"
-
-# Run core parser and model safety tests before publishing
-dotnet test Tempest.WebSocket.Tests/Tempest.WebSocket.Tests.csproj -c Release
-
-# Build the Blazor backend
-dotnet publish TempestBlazorApp/TempestBlazorApp.csproj -c Release -r linux-arm64 --self-contained -o "$BACKEND_DEPLOY"
-
-# Build the Avalonia UI
-dotnet publish Tempest.UI/Tempest.UI.csproj -c Release -r linux-arm64 --self-contained -o "$UI_DEPLOY"
-```
-
-**On Windows:**
-
-```powershell
-# Configure these variables for your environment
-$ProjectPath = "C:\path\to\Tempest Weather Station Console"
-$PiUser = "pi"
-$PiHost = "raspberrypi.local"
-$BackendDeploy = "$env:USERPROFILE\tempest-backend-deploy"
-$UiDeploy = "$env:USERPROFILE\tempest-ui-deploy"
-
-# Build the applications
-cd $ProjectPath
-
-# Run core parser and model safety tests before publishing
-dotnet test Tempest.WebSocket.Tests/Tempest.WebSocket.Tests.csproj -c Release
-
-# Build the Blazor backend
-dotnet publish TempestBlazorApp/TempestBlazorApp.csproj -c Release -r linux-arm64 --self-contained -o $BackendDeploy
-
-# Build the Avalonia UI
-dotnet publish Tempest.UI/Tempest.UI.csproj -c Release -r linux-arm64 --self-contained -o $UiDeploy
-```
-
-### 2. Create Directories on Raspberry Pi
-
-SSH into your Pi and create the necessary directories:
+SSH into your Pi and run:
 
 ```bash
-ssh pi@raspberrypi.local
-mkdir -p ~/tempest-backend/linux-arm64 ~/tempest-ui/linux-arm64 ~/.config/autostart
+curl -fsSL https://raw.githubusercontent.com/chrisroden/tempest-weather-pi-console/main/scripts/pi/install-pi.sh | sudo bash
 ```
 
-### 3. Copy Files to Raspberry Pi
+The installer will prompt for your WeatherFlow API token, Station ID, Device ID, and other options.
 
-**On Mac/Linux:**
+### 2. Unattended Install
 
-Use rsync to copy the built files efficiently:
+Pass all required values on the command line to skip prompts:
 
 ```bash
-# Use the variables from the build step above, or define them again:
-# PI_USER="pi"
-# PI_HOST="raspberrypi.local"
-# BACKEND_DEPLOY="$HOME/tempest-backend-deploy"
-# UI_DEPLOY="$HOME/tempest-ui-deploy"
-
-rsync -av "$BACKEND_DEPLOY/" "${PI_USER}@${PI_HOST}:~/tempest-backend/linux-arm64/"
-rsync -av --exclude 'appsettings.Production.json' "$UI_DEPLOY/" "${PI_USER}@${PI_HOST}:~/tempest-ui/linux-arm64/"
+curl -fsSL https://raw.githubusercontent.com/chrisroden/tempest-weather-pi-console/main/scripts/pi/install-pi.sh | sudo bash -s -- \
+  --mode both \
+  --token YOUR_API_TOKEN \
+  --station-id YOUR_STATION_ID \
+  --device-id YOUR_DEVICE_ID \
+  --yes
 ```
 
-**On Windows:**
-
-Use scp or a tool like WinSCP. With PowerShell scp:
-
-```powershell
-# Use the variables from the build step above, or define them again:
-# $PiUser = "pi"
-# $PiHost = "raspberrypi.local"
-# $BackendDeploy = "$env:USERPROFILE\tempest-backend-deploy"
-# $UiDeploy = "$env:USERPROFILE\tempest-ui-deploy"
-
-scp -r "${BackendDeploy}\*" "${PiUser}@${PiHost}:~/tempest-backend/linux-arm64/"
-scp -r "${UiDeploy}\*" "${PiUser}@${PiHost}:~/tempest-ui/linux-arm64/"
-
-# Note: scp cannot exclude files. Re-copy your Pi-specific appsettings.Production.json afterward if needed.
-```
-
-### 4. Make Executables Runnable
-
-SSH into your Pi and set permissions:
+Or save options in a config file:
 
 ```bash
-ssh pi@raspberrypi.local "chmod +x ~/tempest-backend/linux-arm64/TempestBlazorApp ~/tempest-ui/linux-arm64/Tempest.UI"
+cp scripts/pi/install.env.example scripts/pi/install.env
+chmod 600 scripts/pi/install.env
+# Edit install.env with your values, then:
+curl -fsSL https://raw.githubusercontent.com/chrisroden/tempest-weather-pi-console/main/scripts/pi/install-pi.sh | sudo bash -s -- --config scripts/pi/install.env --yes
 ```
 
-## Part 3: Configure Auto-Start Services
+### 3. What the Installer Does
 
-### 1. Create Startup Scripts
+The installer (`install-pi.sh`) performs all of the following automatically:
 
-The application uses simple bash scripts to start the services. These scripts handle background execution with proper logging.
+- Downloads the latest release tarballs from GitHub
+- Installs binaries to `/opt/tempest/backend/` and `/opt/tempest/ui/`
+- Writes `appsettings.Production.json` with your WeatherFlow credentials
+- Registers and enables `tempest-backend.service` and `tempest-ui.service` as systemd services
+- Starts both services immediately
+- Copies itself to `/opt/tempest/install-pi.sh` so future updates work without re-bootstrapping
 
-SSH into your Pi and create the backend startup script:
+### 4. Installer Reference
+
+```
+Install options:
+  --mode <backend|ui|both>
+  --install-root <path>            Default: /opt/tempest
+  --service-user <user>
+  --token <weatherflow-api-token>
+  --station-id <number>
+  --device-id <number>
+  --port <number>
+  --backend-url <url>
+  --stale-threshold-seconds <n>
+  --theme <name>
+  --enable-at-boot <yes|no>
+  --config <env-file>
+  --write-config <env-file>
+  --yes                            Skip all prompts
+  --dry-run                        Preview without making changes
+
+Update options:
+  --update                         Check GitHub and apply latest release
+  --install-root <path>            Default: /opt/tempest
+  --yes                            Apply without prompting
+```
+
+## Part 3: Verify Services
+
+The installer registers and starts both services via systemd automatically. After installation:
 
 ```bash
-ssh pi@raspberrypi.local
-cat > ~/tempest-backend/start-tempest-backend.sh << 'EOF'
-#!/bin/bash
-cd ~/tempest-backend/linux-arm64
-nohup ./TempestBlazorApp --urls http://0.0.0.0:5000 > ~/tempest-backend.log 2>&1 &
-EOF
-chmod +x ~/tempest-backend/start-tempest-backend.sh
+# Check both services are running
+sudo systemctl status tempest-backend.service
+sudo systemctl status tempest-ui.service
+
+# Follow live logs
+sudo journalctl -u tempest-backend -f
+sudo journalctl -u tempest-ui -f
 ```
 
-Create the UI restart script:
+Both services are enabled at boot by default. To disable auto-start:
 
 ```bash
-cat > ~/tempest-ui/restart-tempest-ui.sh << 'EOF'
-#!/bin/bash
-pkill -9 -f Tempest.UI
-sleep 2
-cd ~/tempest-ui/linux-arm64
-DISPLAY=:0 XAUTHORITY=~/.Xauthority nohup ./Tempest.UI > ~/tempest-ui.log 2>&1 &
-EOF
-chmod +x ~/tempest-ui/restart-tempest-ui.sh
+sudo systemctl disable tempest-backend.service tempest-ui.service
 ```
-
-Create a single launcher script and a Raspberry Pi OS menu item (so you can relaunch everything after exiting UI):
-
-```bash
-cat > ~/tempest-ui/launch-tempest.sh << 'EOF'
-#!/bin/bash
-bash ~/tempest-backend/start-tempest-backend.sh
-sleep 3
-bash ~/tempest-ui/restart-tempest-ui.sh
-EOF
-chmod +x ~/tempest-ui/launch-tempest.sh
-
-mkdir -p ~/.local/share/applications
-cat > ~/.local/share/applications/tempest-launch.desktop << 'EOF'
-[Desktop Entry]
-Type=Application
-Name=Tempest Launch
-Comment=Start Tempest backend and UI
-Exec=/home/pi/tempest-ui/launch-tempest.sh
-Icon=utilities-terminal
-Terminal=false
-Categories=Utility;
-EOF
-```
-
-If your Pi username is not `pi`, replace `/home/pi` in `Exec=` with your user home path.
-
-### 2. Set Up XDG Autostart
-
-Create autostart desktop entries for both services. These will launch automatically when the desktop session starts:
-
-**Backend Autostart:**
-
-```bash
-cat > ~/.config/autostart/tempest-backend.desktop << 'EOF'
-[Desktop Entry]
-Type=Application
-Name=Tempest Backend
-Exec=/home/pi/tempest-backend/start-tempest-backend.sh
-Hidden=false
-NoDisplay=false
-X-GNOME-Autostart-enabled=true
-EOF
-```
-
-**UI Autostart:**
-
-```bash
-cat > ~/.config/autostart/tempest-ui.desktop << 'EOF'
-[Desktop Entry]
-Type=Application
-Name=Tempest UI
-Exec=/home/pi/tempest-ui/linux-arm64/Tempest.UI
-Hidden=false
-NoDisplay=false
-X-GNOME-Autostart-enabled=true
-EOF
-```
-
-### 3. Start Services Manually (First Time)
-
-Before rebooting, test the services manually:
-
-```bash
-# Start backend
-bash ~/tempest-backend/start-tempest-backend.sh
-
-# Wait a few seconds for backend to initialize
-sleep 3
-
-# Verify backend is running
-curl http://localhost:5000/health
-
-# Start UI from the Pi's desktop terminal
-cd ~/tempest-ui/linux-arm64 && ./Tempest.UI
-```
-
-The UI should appear on the screen. If you see "XOpenDisplay failed", you need to run it from a terminal on the Pi itself (not via SSH).
-
-```bash
-sudo reboot
-```
-
-After reboot:
-- Both services should auto-start via XDG autostart
-- The backend will run in the background (check with `pgrep -f TempestBlazorApp`)
-- The UI will launch on the desktop in fullscreen mode
-- The Restart button in the UI can restart both services without requiring a reboot
 
 ## Part 4: Testing and Verification
 
-### 1. Test Backend Service
+### 1. Health Verification Checklist (Post-Deploy)
 
-```bash
-# Check if backend is running
-pgrep -f TempestBlazorApp
-
-# View backend logs
-tail -f ~/tempest-backend.log
-
-# Test health endpoint
-curl http://localhost:5000/health
-
-# Test detailed diagnostics endpoint
-curl http://localhost:5000/health/details
-
-# Stop the backend (if needed)
-pkill -f TempestBlazorApp
-
-# Restart the backend
-bash ~/tempest-backend/start-tempest-backend.sh
-```
-
-### 1a. Health Verification Checklist (Post-Deploy)
-
-Run these commands after deployment and confirm expected results:
+Run these commands on the Pi after installation and confirm expected results:
 
 ```bash
 # 1) Basic health
@@ -447,39 +298,35 @@ Expected:
 - `/health/details` returns JSON with `reconnectAttemptCount`, `totalReconnects`, `successfulConnectionCount`, and `lastSuccessfulBroadcastUtc`
 - SignalR negotiate returns `200`
 
-### 2. Test UI
-
-To relaunch both backend and UI from the Pi desktop menu after exiting, use **Menu → Accessories (or Utilities) → Tempest Launch**.
-
-Check if UI is running:
+### 2. Check Service Status
 
 ```bash
-pgrep -f Tempest.UI
+# Service status
+sudo systemctl status tempest-backend.service
+sudo systemctl status tempest-ui.service
 
-# View UI logs
-tail -f ~/tempest-ui.log
+# Live logs
+sudo journalctl -u tempest-backend -f
+sudo journalctl -u tempest-ui -f
 
-# Stop UI (if needed)
-pkill -f Tempest.UI
-
-# Restart UI from terminal on the Pi
-cd ~/tempest-ui/linux-arm64 && ./Tempest.UI
+# Stop / start manually
+sudo systemctl stop tempest-backend.service
+sudo systemctl start tempest-backend.service
 ```
 
 ### 3. Test Restart Button
 
 The UI includes a Restart button (red) that will:
 1. Show a red connection indicator immediately
-2. Kill and restart the backend using the startup script
-3. Wait for backend health check to pass
-4. Kill and restart the UI using the restart script
-5. Show orange status messages during the process
-6. Show red error messages if restart fails
+2. Restart the backend service and wait for the health check to pass
+3. Restart the UI service
+4. Show orange status messages during the process
+5. Show red error messages if restart fails
 
 To test:
 - Click the Restart button in the UI
 - Watch the status banner and connection indicator
-- Both services should restart within 15-20 seconds
+- Both services should restart within 15–20 seconds
 
 ### 4. Reboot and Verify Auto-Start
 
@@ -487,20 +334,7 @@ To test:
 sudo reboot
 ```
 
-After reboot:
-- The backend service should start automatically
-- The UI should launch when the desktop loads
-- The display should show the weather station in fullscreen mode
-
-### 4. Check Processes
-
-```bash
-# Check if backend is running
-ps aux | grep TempestBlazorApp | grep -v grep
-
-# Check if UI is running
-ps aux | grep Tempest.UI | grep -v grep
-```
+After reboot both services start automatically. The UI displays on the Pi's screen within a few seconds of the desktop loading.
 
 ## Part 5: Configuration Notes
 
@@ -513,7 +347,11 @@ See [CONFIGURATION.md](CONFIGURATION.md) for complete setup instructions on how 
 - Find your Station ID and Device ID
 - Configure both backend and UI with your credentials
 
-Configuration is stored in `appsettings.Production.json` files (not committed to git for security).
+Configuration is stored in `appsettings.Production.json` files under `/opt/tempest/backend/` and `/opt/tempest/ui/` (not committed to git for security). The installer writes these files automatically. To reconfigure, run:
+
+```bash
+sudo /opt/tempest/install-pi.sh --reconfigure
+```
 
 ### Network Requirements
 
@@ -523,7 +361,7 @@ Configuration is stored in `appsettings.Production.json` files (not committed to
 - Backend diagnostics endpoint at `/health/details` (includes reconnect counters and last successful broadcast timestamp)
 - UI connects to `http://localhost:5000` via SignalR for real-time updates
 - Backend connects to WeatherFlow API for data
-- Restart functionality uses scripts to restart both backend and UI
+- Restart functionality is handled by systemd service restarts
 
 ### Health Threshold Configuration
 
@@ -555,89 +393,77 @@ The application is optimized for:
 
 **Backend won't start:**
 ```bash
-# Check if it's running
-pgrep -f TempestBlazorApp
+# Check service status
+sudo systemctl status tempest-backend.service
 
-# Check logs
-tail -50 ~/tempest-backend.log
+# View recent logs
+sudo journalctl -u tempest-backend -n 50
 
 # Check permissions
-ls -la ~/tempest-backend/linux-arm64/TempestBlazorApp
+ls -la /opt/tempest/backend/TempestBlazorApp
 
 # Check .NET runtime
 dotnet --info
-
-# Manually start to see errors
-cd ~/tempest-backend/linux-arm64
-./TempestBlazorApp --urls http://0.0.0.0:5000
 ```
 
 **Backend crashes or restarts:**
 ```bash
-# View full logs
-tail -100 ~/tempest-backend.log
+# View recent logs
+sudo journalctl -u tempest-backend -n 100
 
 # Check for port conflicts
 sudo netstat -tlnp | grep 5000
 
-# Verify --urls parameter
-ps aux | grep TempestBlazorApp
+# Check service is still running
+sudo systemctl status tempest-backend.service
 ```
 
 **Restart button fails:**
-- Check that startup scripts exist and are executable:
-  - `~/tempest-backend/start-tempest-backend.sh`
-  - `~/tempest-ui/restart-tempest-ui.sh`
-- Verify scripts have correct paths (using your home directory `/home/your-username/`)
-- Check logs for error messages during restart attempt
-- Backend must start with `--urls http://0.0.0.0:5000` parameter
+- Check that both services are active: `sudo systemctl status tempest-backend tempest-ui`
+- Check logs for errors during restart: `sudo journalctl -u tempest-backend -n 50`
+- Ensure the service user has permission to restart via systemd
 
 ### UI Issues
 
 **UI doesn't appear on screen:**
 ```bash
-# Check if running
-pgrep -f Tempest.UI
+# Check service status
+sudo systemctl status tempest-ui.service
 
-# Check UI logs
-tail -50 ~/tempest-ui.log
+# View recent logs
+sudo journalctl -u tempest-ui -n 50
 
 # Check .xsession-errors
 tail -50 ~/.xsession-errors
 
-# Verify DISPLAY variable (from desktop terminal)
-echo $DISPLAY
-
-# Try manual start from desktop terminal
-cd ~/tempest-ui/linux-arm64 && ./Tempest.UI
+# Restart the service
+sudo systemctl restart tempest-ui.service
 ```
 
 **XOpenDisplay failed error:**
-- This means X11 display access is not available
-- Cannot start UI via SSH without X forwarding
-- Must start from a terminal on the Pi's desktop, OR
-- Use the autostart mechanism which has proper display access
-- Reboot the Pi to trigger autostart
+- This means X11 display access is not available when the service starts
+- The service unit file sets `DISPLAY` and `XAUTHORITY` — verify the service file under `/etc/systemd/system/tempest-ui.service` has the correct values for your user
+- Reboot the Pi to trigger autostart with the full desktop environment available
 
 **UI shows but no data:**
-- Check backend is running: `pgrep -f TempestBlazorApp`
+- Check backend is running: `sudo systemctl status tempest-backend.service`
 - Test health endpoint: `curl http://localhost:5000/health`
 - Test diagnostics endpoint: `curl http://localhost:5000/health/details`
-- Verify SignalR connection in backend logs: `tail -f ~/tempest-backend.log`
+- Follow backend logs: `sudo journalctl -u tempest-backend -f`
 - Check network connectivity to WeatherFlow API
 
 **Icons or images not showing:**
-- Verify Assets folder exists and was deployed: `ls ~/tempest-ui/linux-arm64/Assets/`
+- Verify Assets folder exists: `ls /opt/tempest/ui/Assets/`
 - Ensure all PNG files are present (47 weather and icon files)
-- Check file permissions: `chmod -R 644 ~/tempest-ui/linux-arm64/Assets/*`
-- Assets must be in the `linux-arm64` deployment directory, not the parent
+- Check file permissions: `chmod -R 644 /opt/tempest/ui/Assets/*`
+- Run `sudo /opt/tempest/install-pi.sh --update --yes` to re-download and replace all files from the latest release
 
 **Connection indicator stuck red:**
-- Backend may not be running: `pgrep -f TempestBlazorApp`
+- Check backend service: `sudo systemctl status tempest-backend.service`
 - Check backend health: `curl http://localhost:5000/health`
 - Check backend diagnostics: `curl http://localhost:5000/health/details`
-- SignalR connection may be broken - check both logs
-- Try the Restart button to restart both services
+- Follow both logs: `sudo journalctl -u tempest-backend -u tempest-ui -f`
+- Try the Restart button in the UI to restart both services
 
 ### Display Issues
 
@@ -720,162 +546,26 @@ htop
 
 ## Updating the Application
 
-### To Deploy Updates
-
-**On Mac/Linux:**
+Once the installer is in place at `/opt/tempest/install-pi.sh`, updates are a single command:
 
 ```bash
-# Configure these variables for your environment
-PROJECT_PATH="/path/to/Tempest Weather Station Console"
-PI_USER="pi"
-PI_HOST="raspberrypi.local"
-BACKEND_DEPLOY="$HOME/tempest-backend-deploy"
-UI_DEPLOY="$HOME/tempest-ui-deploy"
-
-# Rebuild
-cd "$PROJECT_PATH"
-dotnet publish TempestBlazorApp/TempestBlazorApp.csproj -c Release -r linux-arm64 --self-contained -o "$BACKEND_DEPLOY"
-dotnet publish Tempest.UI/Tempest.UI.csproj -c Release -r linux-arm64 --self-contained -o "$UI_DEPLOY"
+sudo /opt/tempest/install-pi.sh --update --yes
 ```
 
-**On Windows:**
+This downloads the latest release from GitHub, swaps the binaries, restarts both services, and refreshes the installer script itself so future updates continue to work.
 
-```powershell
-# Configure these variables for your environment
-$ProjectPath = "C:\path\to\Tempest Weather Station Console"
-$PiUser = "pi"
-$PiHost = "raspberrypi.local"
-$BackendDeploy = "$env:USERPROFILE\tempest-backend-deploy"
-$UiDeploy = "$env:USERPROFILE\tempest-ui-deploy"
-
-# Rebuild
-cd $ProjectPath
-dotnet publish TempestBlazorApp/TempestBlazorApp.csproj -c Release -r linux-arm64 --self-contained -o $BackendDeploy
-dotnet publish Tempest.UI/Tempest.UI.csproj -c Release -r linux-arm64 --self-contained -o $UiDeploy
-```
-
-**Stop services and copy files:**
-
-**On Mac/Linux:**
+### Preview Before Applying
 
 ```bash
-# Stop services on Pi
-ssh "${PI_USER}@${PI_HOST}" "pkill -f TempestBlazorApp && pkill -f Tempest.UI"
-
-# Copy updated files
-rsync -av "$BACKEND_DEPLOY/" "${PI_USER}@${PI_HOST}:~/tempest-backend/linux-arm64/"
-rsync -av --exclude 'appsettings.Production.json' "$UI_DEPLOY/" "${PI_USER}@${PI_HOST}:~/tempest-ui/linux-arm64/"
-
-# Reboot to restart with new code
-ssh "${PI_USER}@${PI_HOST}" "sudo reboot"
+sudo /opt/tempest/install-pi.sh --update --dry-run
 ```
 
-**On Windows:**
+### First-Time Bootstrap (installer not yet on Pi)
 
-```powershell
-# Stop services on Pi
-ssh "${PiUser}@${PiHost}" "pkill -f TempestBlazorApp && pkill -f Tempest.UI"
-
-# Copy updated files
-scp -r "${BackendDeploy}\*" "${PiUser}@${PiHost}:~/tempest-backend/linux-arm64/"
-scp -r "${UiDeploy}\*" "${PiUser}@${PiHost}:~/tempest-ui/linux-arm64/"
-
-# Reboot to restart with new code
-ssh "${PiUser}@${PiHost}" "sudo reboot"
-```
-
-### To Update Just the UI
-
-If you only changed UI code:
-
-**On Mac/Linux:**
+If the Pi has not yet been installed, or the installer file is missing:
 
 ```bash
-# Configure these variables for your environment
-PROJECT_PATH="/path/to/Tempest Weather Station Console"
-PI_USER="pi"
-PI_HOST="raspberrypi.local"
-UI_DEPLOY="$HOME/tempest-ui-deploy"
-
-# Rebuild UI
-cd "$PROJECT_PATH"
-dotnet publish Tempest.UI/Tempest.UI.csproj -c Release -r linux-arm64 --self-contained -o "$UI_DEPLOY"
-
-# Stop UI on Pi
-ssh "${PI_USER}@${PI_HOST}" "pkill -f Tempest.UI"
-
-# Copy just the UI binary and DLL
-rsync -av "$UI_DEPLOY/Tempest.UI" "$UI_DEPLOY/Tempest.UI.dll" "$UI_DEPLOY/Tempest.UI.pdb" "${PI_USER}@${PI_HOST}:~/tempest-ui/linux-arm64/"
-
-# Restart UI from Pi's desktop terminal or reboot
-```
-
-This UI-only update method preserves your Pi-specific `appsettings.Production.json` (including `Ui:SelectedTheme`) because it copies only selected binaries.
-
-**On Windows:**
-
-```powershell
-# Configure these variables for your environment
-$ProjectPath = "C:\path\to\Tempest Weather Station Console"
-$PiUser = "pi"
-$PiHost = "raspberrypi.local"
-$UiDeploy = "$env:USERPROFILE\tempest-ui-deploy"
-
-# Rebuild UI
-cd $ProjectPath
-dotnet publish Tempest.UI/Tempest.UI.csproj -c Release -r linux-arm64 --self-contained -o $UiDeploy
-
-# Stop UI on Pi
-ssh "${PiUser}@${PiHost}" "pkill -f Tempest.UI"
-
-# Copy just the UI binary and DLL
-scp "${UiDeploy}\Tempest.UI" "${UiDeploy}\Tempest.UI.dll" "${UiDeploy}\Tempest.UI.pdb" "${PiUser}@${PiHost}:~/tempest-ui/linux-arm64/"
-
-# Restart UI from Pi's desktop terminal or reboot
-```
-
-### To Update Assets Only
-
-**On Mac/Linux:**
-
-```bash
-# Configure these variables for your environment
-PROJECT_PATH="/path/to/Tempest Weather Station Console"
-PI_USER="pi"
-PI_HOST="raspberrypi.local"
-UI_DEPLOY="$HOME/tempest-ui-deploy"
-
-# Rebuild to get latest assets (they're included in publish output)
-cd "$PROJECT_PATH"
-dotnet publish Tempest.UI/Tempest.UI.csproj -c Release -r linux-arm64 --self-contained -o "$UI_DEPLOY"
-
-# Copy just the Assets folder
-rsync -av "$UI_DEPLOY/Assets/" "${PI_USER}@${PI_HOST}:~/tempest-ui/linux-arm64/Assets/"
-
-# Restart UI using the Restart button, or:
-ssh "${PI_USER}@${PI_HOST}" "pkill -f Tempest.UI"
-# Then start from Pi's desktop terminal
-```
-
-**On Windows:**
-
-```powershell
-# Configure these variables for your environment
-$ProjectPath = "C:\path\to\Tempest Weather Station Console"
-$PiUser = "pi"
-$PiHost = "raspberrypi.local"
-$UiDeploy = "$env:USERPROFILE\tempest-ui-deploy"
-
-# Rebuild to get latest assets (they're included in publish output)
-cd $ProjectPath
-dotnet publish Tempest.UI/Tempest.UI.csproj -c Release -r linux-arm64 --self-contained -o $UiDeploy
-
-# Copy just the Assets folder
-scp -r "${UiDeploy}\Assets\*" "${PiUser}@${PiHost}:~/tempest-ui/linux-arm64/Assets/"
-
-# Restart UI using the Restart button, or:
-ssh "${PiUser}@${PiHost}" "pkill -f Tempest.UI"
-# Then start from Pi's desktop terminal
+curl -fsSL https://raw.githubusercontent.com/chrisroden/tempest-weather-pi-console/main/scripts/pi/install-pi.sh | sudo bash -s -- --update --yes
 ```
 
 ## Additional Tips
@@ -891,149 +581,49 @@ sudo apt-get install realvnc-vnc-server
 sudo raspi-config  # Enable VNC under Interface Options
 ```
 
-### Backup
+### Backup Configuration
 
 ```bash
-# Backup the entire deployment
-ssh pi@raspberrypi.local "tar -czf tempest-backup.tar.gz ~/tempest-backend ~/tempest-ui ~/.config/autostart/tempest-ui.desktop"
-scp pi@raspberrypi.local:~/tempest-backup.tar.gz ./
+# Back up production config files
+ssh pi@raspberrypi.local "sudo tar -czf tempest-config-backup.tar.gz /opt/tempest/backend/appsettings.Production.json /opt/tempest/ui/appsettings.Production.json"
+scp pi@raspberrypi.local:~/tempest-config-backup.tar.gz ./
 ```
 
 ### Multiple Deployments
 
-To deploy to multiple Raspberry Pis:
+Run the installer on each Pi separately. Pass credentials on the command line or use a shared config file:
 
 ```bash
-# Pi 1 (hostname: pi1.local or IP: 192.168.1.100)
-rsync -av ~/tempest-backend-deploy/ pi@pi1.local:~/tempest-backend/linux-arm64/
-rsync -av ~/tempest-ui-deploy/ pi@pi1.local:~/tempest-ui/linux-arm64/
+# Pi 1
+curl -fsSL https://raw.githubusercontent.com/chrisroden/tempest-weather-pi-console/main/scripts/pi/install-pi.sh | \
+  sudo bash -s -- --mode both --token YOUR_TOKEN --station-id YOUR_STATION_ID --device-id YOUR_DEVICE_ID --yes
 
-# Pi 2 (hostname: pi2.local or IP: 192.168.1.101)
-rsync -av ~/tempest-backend-deploy/ pi@pi2.local:~/tempest-backend/linux-arm64/
-rsync -av ~/tempest-ui-deploy/ pi@pi2.local:~/tempest-ui/linux-arm64/
-
-# Configure scripts and autostart on each Pi as described in Part 3
+# To update all Pis later, run on each:
+sudo /opt/tempest/install-pi.sh --update --yes
 ```
 
 ## Complete Example - Fresh Deployment
 
-Here's a complete script for deploying to a fresh Pi. This assumes you've already configured the Pi with .NET runtime and display settings (Part 1).
-
 ```bash
-#!/bin/bash
+# One command — interactive (prompts for credentials)
+curl -fsSL https://raw.githubusercontent.com/chrisroden/tempest-weather-pi-console/main/scripts/pi/install-pi.sh | sudo bash
 
-# Configuration - ADJUST THESE FOR YOUR PI
-PI_USER="pi"  # Your Pi username
-PI_HOST="192.168.1.100"  # Your Pi's IP address or hostname
-PROJECT_PATH="/path/to/Tempest Weather Station Console"  # Path to your project
-HOME_DIR="/home/${PI_USER}"
-
-# Build applications
-cd "$PROJECT_PATH"
-echo "Building backend..."
-dotnet publish TempestBlazorApp/TempestBlazorApp.csproj -c Release -r linux-arm64 --self-contained -o ~/tempest-backend-deploy
-
-echo "Building UI..."
-dotnet publish Tempest.UI/Tempest.UI.csproj -c Release -r linux-arm64 --self-contained -o ~/tempest-ui-deploy
-
-# Create directories on Pi
-echo "Creating directories..."
-ssh ${PI_USER}@${PI_HOST} "mkdir -p ~/tempest-backend/linux-arm64 ~/tempest-ui/linux-arm64 ~/.config/autostart"
-
-# Copy files
-echo "Copying backend..."
-rsync -av ~/tempest-backend-deploy/ ${PI_USER}@${PI_HOST}:~/tempest-backend/linux-arm64/
-
-echo "Copying UI..."
-rsync -av ~/tempest-ui-deploy/ ${PI_USER}@${PI_HOST}:~/tempest-ui/linux-arm64/
-
-# Set permissions
-echo "Setting permissions..."
-ssh ${PI_USER}@${PI_HOST} "chmod +x ~/tempest-backend/linux-arm64/TempestBlazorApp ~/tempest-ui/linux-arm64/Tempest.UI"
-
-# Create backend startup script
-echo "Creating backend startup script..."
-ssh ${PI_USER}@${PI_HOST} "cat > ~/tempest-backend/start-tempest-backend.sh << 'EOF'
-#!/bin/bash
-cd ~/tempest-backend/linux-arm64
-nohup ./TempestBlazorApp --urls http://0.0.0.0:5000 > ~/tempest-backend.log 2>&1 &
-EOF
-chmod +x ~/tempest-backend/start-tempest-backend.sh"
-
-# Create UI restart script
-echo "Creating UI restart script..."
-ssh ${PI_USER}@${PI_HOST} "cat > ~/tempest-ui/restart-tempest-ui.sh << 'EOF'
-#!/bin/bash
-pkill -f Tempest.UI
-sleep 2
-cd ~/tempest-ui/linux-arm64
-DISPLAY=:0 XAUTHORITY=~/.Xauthority nohup ./Tempest.UI > ~/tempest-ui.log 2>&1 &
-EOF
-chmod +x ~/tempest-ui/restart-tempest-ui.sh"
-
-# Create combined launcher script
-echo "Creating combined launcher script..."
-ssh ${PI_USER}@${PI_HOST} "cat > ~/tempest-ui/launch-tempest.sh << 'EOF'
-#!/bin/bash
-bash ~/tempest-backend/start-tempest-backend.sh
-sleep 3
-bash ~/tempest-ui/restart-tempest-ui.sh
-EOF
-chmod +x ~/tempest-ui/launch-tempest.sh"
-
-# Create Pi menu launcher item
-echo "Creating Pi menu launcher item..."
-ssh ${PI_USER}@${PI_HOST} "mkdir -p ~/.local/share/applications && cat > ~/.local/share/applications/tempest-launch.desktop << EOF
-[Desktop Entry]
-Type=Application
-Name=Tempest Launch
-Comment=Start Tempest backend and UI
-Exec=${HOME_DIR}/tempest-ui/launch-tempest.sh
-Icon=utilities-terminal
-Terminal=false
-Categories=Utility;
-EOF"
-
-# Create backend autostart
-echo "Creating backend autostart..."
-ssh ${PI_USER}@${PI_HOST} "cat > ~/.config/autostart/tempest-backend.desktop << EOF
-[Desktop Entry]
-Type=Application
-Name=Tempest Backend
-Exec=${HOME_DIR}/tempest-backend/start-tempest-backend.sh
-Hidden=false
-NoDisplay=false
-X-GNOME-Autostart-enabled=true
-EOF"
-
-# Create UI autostart
-echo "Creating UI autostart..."
-ssh ${PI_USER}@${PI_HOST} "cat > ~/.config/autostart/tempest-ui.desktop << EOF
-[Desktop Entry]
-Type=Application
-Name=Tempest UI
-Exec=${HOME_DIR}/tempest-ui/linux-arm64/Tempest.UI
-Hidden=false
-NoDisplay=false
-X-GNOME-Autostart-enabled=true
-EOF"
-
-echo "Deployment complete! Rebooting Pi..."
-ssh ${PI_USER}@${PI_HOST} "sudo reboot"
-
-echo ""
-echo "After reboot, both services should start automatically."
-echo "Backend will be available at http://${PI_HOST}:5000"
-echo "UI will display on the Pi's screen."
+# One command — fully unattended
+curl -fsSL https://raw.githubusercontent.com/chrisroden/tempest-weather-pi-console/main/scripts/pi/install-pi.sh | sudo bash -s -- \
+  --mode both \
+  --token YOUR_API_TOKEN \
+  --station-id YOUR_STATION_ID \
+  --device-id YOUR_DEVICE_ID \
+  --yes
 ```
 
-Save this as `deploy.sh`, make it executable (`chmod +x deploy.sh`), and run it to deploy everything automatically.
+The installer handles everything: downloading binaries, writing config, registering systemd services, and starting the application.
 
-**Note:** This script assumes you've already:
-1. Configured the Pi with .NET runtime (see Part 1, Step 2)
-2. Set up display settings if using a touchscreen (see Part 1, Step 3)
-3. Configured `appsettings.Production.json` files with your WeatherFlow credentials
+**Prerequisites (complete Part 1 first):**
+1. Raspberry Pi OS Lite 64-bit with desktop
+2. Display and touchscreen configured
+3. Screen blanking and cursor hidden
 
 ---
 
-Your Tempest Weather Station should now be fully deployed and running on your Raspberry Pi! 🌤️
+Your Tempest Weather Station should now be fully deployed and running on your Raspberry Pi.
