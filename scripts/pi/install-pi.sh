@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 SUDO=""
@@ -907,7 +907,7 @@ main() {
   printf '%s\n' "${RELEASE_VERSION:-dev-$(date +%Y%m%d%H%M%S)}" | ${SUDO} tee "${INSTALL_ROOT}/VERSION" > /dev/null
 
   # Keep the installer itself in INSTALL_ROOT so `sudo bash /opt/tempest/install-pi.sh --update` works
-  ${SUDO} install -m 755 "${BASH_SOURCE[0]}" "${INSTALL_ROOT}/install-pi.sh"
+  ${SUDO} install -m 755 "${BASH_SOURCE[0]:-$0}" "${INSTALL_ROOT}/install-pi.sh"
 
   ok "Install complete."
   printf "\nUseful commands:\n"
