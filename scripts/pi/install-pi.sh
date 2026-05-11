@@ -581,6 +581,17 @@ run_update() {
   # Record the new version
   printf '%s\n' "${latest_tag}" | ${SUDO} tee "${INSTALL_ROOT}/VERSION" > /dev/null
 
+  # Refresh installer so future updates work from ${INSTALL_ROOT}/install-pi.sh
+  local installer_url="https://raw.githubusercontent.com/${GITHUB_REPO}/${latest_tag}/scripts/pi/install-pi.sh"
+  local tmp_installer
+  tmp_installer="$(mktemp)"
+  if curl -fsSL "${installer_url}" -o "${tmp_installer}"; then
+    ${SUDO} install -m 755 "${tmp_installer}" "${INSTALL_ROOT}/install-pi.sh"
+  else
+    warn "Could not download updated installer; existing copy left in place."
+  fi
+  rm -f "${tmp_installer}"
+
   # Restart services (no systemd re-registration needed)
   if [[ "${MODE}" == "backend" || "${MODE}" == "both" ]]; then
     ${SUDO} systemctl start tempest-backend.service
