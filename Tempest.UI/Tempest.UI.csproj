@@ -36,7 +36,7 @@
         <!--Condition below is needed to remove AvaloniaUI.DiagnosticsSupport package from build output in Release configuration.-->
         <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.1" />
         <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-        <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.7" />
+        <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.8" />
         <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.7" />
     </ItemGroup>
 
