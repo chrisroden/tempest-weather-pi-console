@@ -653,3 +653,7 @@ appsettings.Production.json
 
 .DS_Store
 .idea/
+
+# Local build artifacts from cross-compiles / test deploys
+dist/
+
