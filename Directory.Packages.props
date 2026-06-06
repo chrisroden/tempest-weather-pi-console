@@ -1,0 +1,45 @@
+<Project>
+  <!-- Central Package Management (CPM)
+       See: https://learn.microsoft.com/nuget/consume-packages/central-package-management
+       All direct package versions are declared here. Individual .csproj files
+       reference packages without a Version attribute. -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Avalonia (UI) -->
+    <PackageVersion Include="Avalonia" Version="12.0.4" />
+    <PackageVersion Include="Avalonia.Desktop" Version="12.0.4" />
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.0.4" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.0.4" />
+    <PackageVersion Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.2" />
+
+    <!-- MVVM -->
+    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+
+    <!-- ASP.NET Core / SignalR (unified 10.x packages)
+         Client packages are used by Tempest.UI (desktop) and TempestBlazorApp.
+         Server-side Hub / IHubContext types for Tempest.WebSocket are obtained via
+         FrameworkReference Include="Microsoft.AspNetCore.App" (the modern way in .NET 8+;
+         avoids the old Microsoft.AspNetCore.SignalR.* 1.x package IDs). -->
+    <!-- Use 9.0.x line for Mvc.Testing because the test project and SUT target net9.0.
+         The 10.0.8 package is net10.0-only. 9.0.16 is a small servicing bump from the previous 9.0.15. -->
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.16" />
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.8" />
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client.Core" Version="10.0.8" />
+
+    <!-- Extensions (used by REST, WebSocket, UI) -->
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.8" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.8" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.8" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.8" />
+
+    <!-- Test tooling -->
+    <PackageVersion Include="coverlet.collector" Version="10.0.1" />
+    <PackageVersion Include="coverlet.msbuild" Version="10.0.1" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.6.0" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+</Project>

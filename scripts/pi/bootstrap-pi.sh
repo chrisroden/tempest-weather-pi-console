@@ -172,7 +172,7 @@ detect_platform() {
 install_prereqs() {
   info "Installing prerequisite packages..."
   ${SUDO} apt-get update
-  ${SUDO} apt-get install -y curl jq ca-certificates tar
+  ${SUDO} apt-get install -y curl jq ca-certificates tar rsync
 
   if ! command -v dotnet >/dev/null 2>&1; then
     warn ".NET not found; installing .NET 9 runtime and SDK via dotnet-install.sh"

@@ -8,10 +8,15 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Microsoft.AspNetCore.SignalR.Client.Core" Version="10.0.7" />
-      <PackageReference Include="Microsoft.AspNetCore.SignalR.Core" Version="1.2.9" />
-      <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.7" />
-      <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.7" />
+      <!-- Server-side SignalR types (Hub, IHubContext<WeatherHub>, etc.) used by
+           WeatherHub and TempestWebSocketService for broadcasting parsed weather data.
+           We use FrameworkReference rather than a PackageReference to the old
+           Microsoft.AspNetCore.SignalR.* 1.x packages or non-existent 10.x meta packages.
+           This is the recommended approach for class libraries in .NET 8/9/10 when
+           the library is only consumed by ASP.NET Core hosts. -->
+      <FrameworkReference Include="Microsoft.AspNetCore.App" />
+      <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+      <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
     </ItemGroup>
 
 </Project>

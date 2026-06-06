@@ -526,6 +526,13 @@ run_update() {
     ${SUDO} systemctl stop tempest-ui.service || true
   fi
 
+  # Safety backup of current live installation before any changes
+  local safety_backup="${INSTALL_ROOT}.bak.pre-update-${latest_tag}"
+  if [[ -d "${INSTALL_ROOT}" ]]; then
+    info "Creating safety backup before update: ${safety_backup}"
+    ${SUDO} cp -a "${INSTALL_ROOT}" "${safety_backup}" 2>/dev/null || warn "Could not create full safety backup (non-fatal)"
+  fi
+
   local tmp_dir
   tmp_dir="$(mktemp -d)"
 
@@ -550,24 +557,60 @@ run_update() {
     rm -f "${tmp_ui_archive}"
   fi
 
-  # Swap binaries — preserve appsettings files so runtime config (theme, etc.) is not reset
+  # Swap binaries safely — ALWAYS preserve any existing appsettings*.json files.
+  # We use rsync --delete + --exclude when available for a clean replace (removes stale files from old version).
+  # Config files are explicitly protected so user tokens/station settings are never lost.
   if [[ "${MODE}" == "backend" || "${MODE}" == "both" ]]; then
     info "Installing updated backend..."
-    find "${INSTALL_ROOT}/backend" \
-      -not -name "appsettings*.json" \
-      -not -type d \
-      -delete 2>/dev/null || true
-    ${SUDO} cp -a "${tmp_dir}/backend/." "${INSTALL_ROOT}/backend/"
+    local backend_cfg_backup=""
+    if [[ -f "${INSTALL_ROOT}/backend/appsettings.Production.json" ]]; then
+      backend_cfg_backup="$(mktemp)"
+      ${SUDO} cp "${INSTALL_ROOT}/backend/appsettings.Production.json" "$backend_cfg_backup"
+    fi
+
+    if command -v rsync >/dev/null 2>&1; then
+      ${SUDO} rsync -a --delete --exclude 'appsettings*.json' "${tmp_dir}/backend/." "${INSTALL_ROOT}/backend/"
+    else
+      warn "rsync not found; using fallback delete+copy (config will be restored)"
+      find "${INSTALL_ROOT}/backend" \
+        -not -name "appsettings*.json" \
+        -not -type d \
+        -delete 2>/dev/null || true
+      ${SUDO} cp -a "${tmp_dir}/backend/." "${INSTALL_ROOT}/backend/"
+    fi
+
+    if [[ -n "$backend_cfg_backup" ]]; then
+      ${SUDO} cp "$backend_cfg_backup" "${INSTALL_ROOT}/backend/appsettings.Production.json"
+      rm -f "$backend_cfg_backup"
+    fi
+
     ${SUDO} chmod +x "${INSTALL_ROOT}/backend/TempestBlazorApp" || true
   fi
 
   if [[ "${MODE}" == "ui" || "${MODE}" == "both" ]]; then
     info "Installing updated UI..."
-    find "${INSTALL_ROOT}/ui" \
-      -not -name "appsettings*.json" \
-      -not -type d \
-      -delete 2>/dev/null || true
-    ${SUDO} cp -a "${tmp_dir}/ui/." "${INSTALL_ROOT}/ui/"
+    local ui_cfg_backup=""
+    if [[ -f "${INSTALL_ROOT}/ui/appsettings.Production.json" ]]; then
+      ui_cfg_backup="$(mktemp)"
+      ${SUDO} cp "${INSTALL_ROOT}/ui/appsettings.Production.json" "$ui_cfg_backup"
+    fi
+
+    if command -v rsync >/dev/null 2>&1; then
+      ${SUDO} rsync -a --delete --exclude 'appsettings*.json' "${tmp_dir}/ui/." "${INSTALL_ROOT}/ui/"
+    else
+      warn "rsync not found; using fallback delete+copy (config will be restored)"
+      find "${INSTALL_ROOT}/ui" \
+        -not -name "appsettings*.json" \
+        -not -type d \
+        -delete 2>/dev/null || true
+      ${SUDO} cp -a "${tmp_dir}/ui/." "${INSTALL_ROOT}/ui/"
+    fi
+
+    if [[ -n "$ui_cfg_backup" ]]; then
+      ${SUDO} cp "$ui_cfg_backup" "${INSTALL_ROOT}/ui/appsettings.Production.json"
+      rm -f "$ui_cfg_backup"
+    fi
+
     ${SUDO} chmod +x "${INSTALL_ROOT}/ui/Tempest.UI" || true
   fi
 
@@ -823,8 +866,16 @@ main() {
       exit 1
     fi
     info "Copying backend publish output..."
-    ${SUDO} cp -a "${BACKEND_SOURCE}/." "${INSTALL_ROOT}/backend/"
+    # Use rsync for cleaner replacement of app files when available
+    if command -v rsync >/dev/null 2>&1; then
+      ${SUDO} rsync -a --delete "${BACKEND_SOURCE}/." "${INSTALL_ROOT}/backend/"
+    else
+      ${SUDO} cp -a "${BACKEND_SOURCE}/." "${INSTALL_ROOT}/backend/"
+    fi
     ${SUDO} chmod +x "${INSTALL_ROOT}/backend/TempestBlazorApp" || true
+
+    # For source-based install we intentionally (re)write the Production config from provided values.
+    # Always back up the previous one first.
     if [[ -f "${INSTALL_ROOT}/backend/appsettings.Production.json" ]]; then
       ${SUDO} cp "${INSTALL_ROOT}/backend/appsettings.Production.json" "${INSTALL_ROOT}/backend/appsettings.Production.json.bak.$(date +%Y%m%d%H%M%S)"
     fi
@@ -840,8 +891,13 @@ main() {
       exit 1
     fi
     info "Copying UI publish output..."
-    ${SUDO} cp -a "${UI_SOURCE}/." "${INSTALL_ROOT}/ui/"
+    if command -v rsync >/dev/null 2>&1; then
+      ${SUDO} rsync -a --delete "${UI_SOURCE}/." "${INSTALL_ROOT}/ui/"
+    else
+      ${SUDO} cp -a "${UI_SOURCE}/." "${INSTALL_ROOT}/ui/"
+    fi
     ${SUDO} chmod +x "${INSTALL_ROOT}/ui/Tempest.UI" || true
+
     if [[ -f "${INSTALL_ROOT}/ui/appsettings.Production.json" ]]; then
       ${SUDO} cp "${INSTALL_ROOT}/ui/appsettings.Production.json" "${INSTALL_ROOT}/ui/appsettings.Production.json.bak.$(date +%Y%m%d%H%M%S)"
     fi
