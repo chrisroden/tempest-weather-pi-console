@@ -296,33 +296,32 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
     {
         _restartAttempts++;
         Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Auto-restart attempt #{_restartAttempts}");
-        
-        Dispatcher.UIThread.Post(() =>
-        {
-            StatusMessage = $"Connection lost - attempting restart (attempt {_restartAttempts})...";
-            StatusMessageColor = StatusInfoColor;
-            ShowStatusMessage = true;
-        });
-        
+
         try
         {
-            await RestartBackendCore(throwOnFailure: true);
-            // RestartBackend() will exit the app if successful, so this only runs on failure
+            // Heartbeat runs on a thread-pool timer; all UI / hub work must run on the UI thread.
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                StatusMessage = $"Connection lost - attempting restart (attempt {_restartAttempts})...";
+                StatusMessageColor = StatusInfoColor;
+                ShowStatusMessage = true;
+                await RestartBackendCore(throwOnFailure: true);
+            });
+            // Successful path restarts the UI service (or exits); this only runs on failure.
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ERROR: Auto-restart failed: {ex.Message}");
-            
-            Dispatcher.UIThread.Post(() =>
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 StatusMessage = $"Restart failed (attempt {_restartAttempts}). Will retry in 3 minutes.";
                 StatusMessageColor = StatusErrorColor;
                 ShowStatusMessage = true;
             });
-            
-            // Schedule retry in 3 minutes
+
             await Task.Delay(180000); // 3 minutes
-            _isAttemptingRestart = false; // Allow next heartbeat check to retry
+            _isAttemptingRestart = false;
         }
     }
 
@@ -903,143 +902,120 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
     [RelayCommand]
     private async Task RestartBackend()
     {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            await Dispatcher.UIThread.InvokeAsync(async () => await RestartBackendCore(throwOnFailure: false));
+            return;
+        }
+
         await RestartBackendCore(throwOnFailure: false);
     }
 
+    /// <summary>
+    /// Production installs use systemd units under /opt/tempest. Restart goes through
+    /// systemctl so we do not spawn parallel home-directory script instances.
+    /// Must run on the Avalonia UI thread (property / hub access).
+    /// </summary>
     private async Task RestartBackendCore(bool throwOnFailure)
     {
         try
         {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
-                Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] USER ACTION: Backend/UI restart requested via UI button");
-                
-                // Immediately disconnect SignalR and show disconnected status
-                IsConnected = false;
-                await _hubConnection?.StopAsync()!;
-                
-                StatusMessage = "Stopping backend service...";
-                StatusMessageColor = StatusInfoColor;
+                StatusMessage = "Restart is only supported on Linux (Raspberry Pi).";
+                StatusMessageColor = StatusErrorColor;
                 ShowStatusMessage = true;
-                
-                // Kill ALL existing backend processes (force kill with -9)
-                var killProcess = new Process
+                return;
+            }
+
+            Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] USER ACTION: Backend/UI restart via systemctl");
+
+            IsConnected = false;
+            if (_hubConnection is not null)
+            {
+                try
                 {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = "pkill",
-                        Arguments = "-9 -f TempestBlazorApp",
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    }
-                };
-                killProcess.Start();
-                killProcess.WaitForExit();
-                Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Killed ALL backend processes (force kill)");
-                
-                StatusMessage = "Backend stopped. Starting new instance...";
-                await Task.Delay(2000);
-                
-                // Determine paths based on user
-                var homeDir = Environment.GetEnvironmentVariable("HOME") ?? "/home/pi";
-                
-                // Start backend using its startup script
-                var startBackend = new Process
+                    await _hubConnection.StopAsync();
+                }
+                catch (Exception hubEx)
                 {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = "bash",
-                        Arguments = $"{homeDir}/tempest-backend/start-tempest-backend.sh",
-                        RedirectStandardOutput = false,
-                        RedirectStandardError = false,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    }
-                };
-                startBackend.Start();
-                // Don't wait for exit since it's a background process
-                await Task.Delay(1000); // Give it a moment to start
-                Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Backend start command issued, verifying...");
-                
-                // Wait for backend to actually be ready by checking if it responds
-                StatusMessage = "Backend starting... Checking connectivity...";
-                bool backendReady = false;
-                int attempts = 0;
-                int maxAttempts = 15; // 15 seconds max
-                
-                using (var httpClient = new System.Net.Http.HttpClient())
+                    Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Hub stop during restart: {hubEx.Message}");
+                }
+            }
+
+            StatusMessage = "Restarting backend service...";
+            StatusMessageColor = StatusInfoColor;
+            ShowStatusMessage = true;
+
+            if (!await RunSudoSystemctlAsync("restart", "tempest-backend.service"))
+            {
+                StatusMessage = "Failed to restart backend (sudo/systemctl). Check /etc/sudoers.d/tempest.";
+                StatusMessageColor = StatusErrorColor;
+                Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ERROR: systemctl restart tempest-backend.service failed");
+                if (throwOnFailure)
                 {
-                    httpClient.Timeout = TimeSpan.FromSeconds(1);
-                    
-                    while (!backendReady && attempts < maxAttempts)
+                    throw new InvalidOperationException("systemctl restart tempest-backend.service failed.");
+                }
+
+                return;
+            }
+
+            StatusMessage = "Backend restarting... Checking health...";
+            const int maxAttempts = 20;
+            var backendReady = false;
+            using (var httpClient = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(2) })
+            {
+                for (var attempt = 1; attempt <= maxAttempts; attempt++)
+                {
+                    try
                     {
-                        attempts++;
-                        try
+                        var response = await httpClient.GetAsync($"{_backendUrl}/health");
+                        if (response.IsSuccessStatusCode)
                         {
-                            var response = await httpClient.GetAsync($"{_backendUrl}/health");
-                            if (response.IsSuccessStatusCode)
-                            {
-                                backendReady = true;
-                                Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Backend is ready after {attempts} seconds");
-                            }
-                        }
-                        catch
-                        {
-                            // Backend not ready yet, wait and retry
-                            await Task.Delay(1000);
+                            backendReady = true;
+                            Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Backend healthy after {attempt} attempt(s)");
+                            break;
                         }
                     }
-                }
-                
-                if (!backendReady)
-                {
-                    StatusMessage = "Backend failed to start! Check logs.";
-                    StatusMessageColor = StatusErrorColor;
-                    IsConnected = false; // Ensure red dot shows
-                    Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ERROR: Backend did not respond after {maxAttempts} seconds");
-                    await Task.Delay(3000);
-                    ShowStatusMessage = false;
-
-                    if (throwOnFailure)
+                    catch
                     {
-                        throw new InvalidOperationException($"Backend did not respond after {maxAttempts} seconds.");
+                        // not ready yet
                     }
 
-                    return;
+                    await Task.Delay(1000);
                 }
-                
-                // Restart UI to reconnect to backend
-                Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Restarting UI to reconnect...");
-                StatusMessage = "Restarting UI now...";
-                
-                // Start a restart script that will launch the UI after we exit
-                var restartUI = new Process
+            }
+
+            if (!backendReady)
+            {
+                StatusMessage = "Backend failed health check after restart.";
+                StatusMessageColor = StatusErrorColor;
+                IsConnected = false;
+                Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ERROR: Backend did not respond after {maxAttempts}s");
+                if (throwOnFailure)
                 {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = "bash",
-                        Arguments = $"{homeDir}/tempest-ui/restart-tempest-ui.sh",
-                        RedirectStandardOutput = false,
-                        RedirectStandardError = false,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    }
-                };
-                restartUI.Start();
-                Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] UI restart script started, exiting now...");
-                
-                // Exit immediately so the restart script can work
-                await Task.Delay(200);
+                    throw new InvalidOperationException($"Backend did not respond after {maxAttempts} seconds.");
+                }
+
+                return;
+            }
+
+            StatusMessage = "Restarting UI service...";
+            Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Restarting tempest-ui.service via systemctl");
+
+            // systemctl restart kills this process; no need to Environment.Exit afterward.
+            if (!await RunSudoSystemctlAsync("restart", "tempest-ui.service"))
+            {
+                // Fallback: exit and let Restart=always bring the UI back.
+                Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] WARN: systemctl restart UI failed; exiting for systemd Restart=always");
+                StatusMessage = "UI restart via systemctl failed; exiting for systemd respawn...";
+                await Task.Delay(300);
                 Environment.Exit(0);
-                Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] UI restart initiated");
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ERROR: Failed to restart services - {ex.Message}");
-
             if (throwOnFailure)
             {
                 throw;
@@ -1047,54 +1023,66 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Runs passwordless sudo systemctl for tempest units. Requires /etc/sudoers.d/tempest.
+    /// </summary>
+    private static async Task<bool> RunSudoSystemctlAsync(string verb, string unit)
+    {
+        try
+        {
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "sudo",
+                    Arguments = $"-n /usr/bin/systemctl {verb} {unit}",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+            process.Start();
+            var stdout = await process.StandardOutput.ReadToEndAsync();
+            var stderr = await process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+            if (process.ExitCode != 0)
+            {
+                Console.WriteLine(
+                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] systemctl {verb} {unit} exit={process.ExitCode} stderr={stderr.Trim()} stdout={stdout.Trim()}");
+                return false;
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] systemctl {verb} {unit} exception: {ex.Message}");
+            return false;
+        }
+    }
+
     [RelayCommand]
-    private void ExitApp()
+    private async Task ExitApp()
     {
         Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] USER ACTION: Exit application requested via UI button");
-        
+
         try
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
-                // Kill ALL backend processes
-                var killBackend = new Process
-                {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = "pkill",
-                        Arguments = "-9 -f TempestBlazorApp",
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    }
-                };
-                killBackend.Start();
-                killBackend.WaitForExit();
-                Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Killed all backend processes");
-                
-                // Kill ALL UI processes (will kill this one too)
-                var killUI = new Process
-                {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = "pkill",
-                        Arguments = "-9 -f Tempest.UI",
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    }
-                };
-                killUI.Start();
-                Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Killed all UI processes");
+                // systemctl stop keeps units down (unlike pkill, which races Restart=always).
+                await RunSudoSystemctlAsync("stop", "tempest-backend.service");
+                await RunSudoSystemctlAsync("stop", "tempest-ui.service");
+                Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Stopped tempest-backend and tempest-ui via systemctl");
+                return;
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ERROR: Failed to kill processes - {ex.Message}");
+            Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ERROR: Failed to stop services - {ex.Message}");
         }
-        
+
         Environment.Exit(0);
     }
 
@@ -1111,7 +1099,7 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
                     StartInfo = new ProcessStartInfo
                     {
                         FileName = "sudo",
-                        Arguments = "reboot",
+                        Arguments = "-n /usr/sbin/reboot",
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
                         UseShellExecute = false,
@@ -1119,7 +1107,16 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
                     }
                 };
                 process.Start();
-                Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Pi reboot command issued - system will restart shortly");
+                var stderr = process.StandardError.ReadToEnd();
+                process.WaitForExit(5000);
+                if (process.ExitCode != 0)
+                {
+                    Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ERROR: reboot failed exit={process.ExitCode} stderr={stderr.Trim()}");
+                }
+                else
+                {
+                    Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Pi reboot command issued - system will restart shortly");
+                }
             }
         }
         catch (Exception ex)
