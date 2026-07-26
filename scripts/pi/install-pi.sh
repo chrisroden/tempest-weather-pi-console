@@ -403,6 +403,42 @@ write_service_file() {
     "${template_file}" | ${SUDO} tee "${out_file}" >/dev/null
 }
 
+# UI Reboot runs `sudo reboot` as the service user (no TTY). Restart may call systemctl.
+# Install a narrow passwordless rule for those commands only.
+write_tempest_sudoers() {
+  local user="${1:-${SERVICE_USER}}"
+  local sudoers_file="/etc/sudoers.d/tempest"
+  local line
+
+  if [[ -z "${user}" ]]; then
+    warn "No service user set; skipping sudoers for UI reboot/restart."
+    return 0
+  fi
+
+  # Sudoers usernames must be simple identifiers (reject injection / invalid names).
+  if [[ ! "${user}" =~ ^[a-z_][a-z0-9_-]*$ ]]; then
+    err "Refusing to write sudoers for invalid service user name: ${user}"
+    return 1
+  fi
+
+  if ! id -u "${user}" >/dev/null 2>&1; then
+    warn "Service user ${user} does not exist; skipping sudoers for UI reboot/restart."
+    return 0
+  fi
+
+  # UI Restart/Exit/Reboot use passwordless sudo systemctl + reboot (no TTY under systemd).
+  line="${user} ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart tempest-backend.service, /usr/bin/systemctl restart tempest-ui.service, /usr/bin/systemctl stop tempest-backend.service, /usr/bin/systemctl stop tempest-ui.service, /usr/bin/systemctl start tempest-backend.service, /usr/bin/systemctl start tempest-ui.service, /usr/sbin/reboot"
+  info "Configuring passwordless sudo for UI restart/stop/reboot (${user})..."
+  printf '%s\n' "${line}" | ${SUDO} tee "${sudoers_file}" >/dev/null
+  ${SUDO} chmod 440 "${sudoers_file}"
+  if ! ${SUDO} visudo -cf "${sudoers_file}" >/dev/null; then
+    err "Generated ${sudoers_file} failed visudo validation; removing it."
+    ${SUDO} rm -f "${sudoers_file}"
+    return 1
+  fi
+  ok "Wrote ${sudoers_file}"
+}
+
 read_installed_service_user() {
   local svc_file="/etc/systemd/system/tempest-backend.service"
   if [[ ! -f "${svc_file}" ]]; then
@@ -526,6 +562,35 @@ run_update() {
     ${SUDO} systemctl stop tempest-ui.service || true
   fi
 
+  # Ensure a single managed instance: remove any orphan processes left outside systemd
+  # (e.g. from the old home-directory start scripts or failed restarts).
+  ensure_tempest_processes_stopped() {
+    local pattern="$1"
+    local label="$2"
+    if pgrep -f "${pattern}" >/dev/null 2>&1; then
+      warn "Found leftover ${label} process(es); sending SIGTERM then SIGKILL if needed"
+      ${SUDO} pkill -f "${pattern}" 2>/dev/null || true
+      sleep 1
+      if pgrep -f "${pattern}" >/dev/null 2>&1; then
+        ${SUDO} pkill -9 -f "${pattern}" 2>/dev/null || true
+        sleep 1
+      fi
+    fi
+    if pgrep -f "${pattern}" >/dev/null 2>&1; then
+      err "Could not stop all ${label} processes matching: ${pattern}"
+      pgrep -af "${pattern}" || true
+      return 1
+    fi
+    return 0
+  }
+
+  if [[ "${MODE}" == "backend" || "${MODE}" == "both" ]]; then
+    ensure_tempest_processes_stopped "${INSTALL_ROOT}/backend/TempestBlazorApp" "backend" || true
+  fi
+  if [[ "${MODE}" == "ui" || "${MODE}" == "both" ]]; then
+    ensure_tempest_processes_stopped "${INSTALL_ROOT}/ui/Tempest.UI" "UI" || true
+  fi
+
   # Safety backup of current live installation before any changes
   local safety_backup="${INSTALL_ROOT}.bak.pre-update-${latest_tag}"
   if [[ -d "${INSTALL_ROOT}" ]]; then
@@ -621,6 +686,9 @@ run_update() {
     ${SUDO} chown -R "${SERVICE_USER}":"${SERVICE_USER}" "${INSTALL_ROOT}"
   fi
 
+  # Ensure UI reboot/restart sudoers match the service user (repairs old pi/PASSWD rules).
+  write_tempest_sudoers "${SERVICE_USER}" || warn "Could not configure sudoers for UI reboot/restart."
+
   # Record the new version
   printf '%s\n' "${latest_tag}" | ${SUDO} tee "${INSTALL_ROOT}/VERSION" > /dev/null
 
@@ -641,6 +709,31 @@ run_update() {
   fi
   if [[ "${MODE}" == "ui" || "${MODE}" == "both" ]]; then
     ${SUDO} systemctl start tempest-ui.service || true
+  fi
+
+  # Single-instance check: exactly one process per component under INSTALL_ROOT
+  count_matching_procs() {
+    pgrep -f "$1" 2>/dev/null | wc -l | tr -d ' '
+  }
+  if [[ "${MODE}" == "backend" || "${MODE}" == "both" ]]; then
+    local backend_count
+    backend_count="$(count_matching_procs "${INSTALL_ROOT}/backend/TempestBlazorApp")"
+    if [[ "${backend_count}" != "1" ]]; then
+      warn "Expected 1 backend process, found ${backend_count}"
+      pgrep -af "${INSTALL_ROOT}/backend/TempestBlazorApp" || true
+    else
+      ok "Single backend instance confirmed"
+    fi
+  fi
+  if [[ "${MODE}" == "ui" || "${MODE}" == "both" ]]; then
+    local ui_count
+    ui_count="$(count_matching_procs "${INSTALL_ROOT}/ui/Tempest.UI")"
+    if [[ "${ui_count}" != "1" ]]; then
+      warn "Expected 1 UI process, found ${ui_count} (UI may still be starting)"
+      pgrep -af "${INSTALL_ROOT}/ui/Tempest.UI" || true
+    else
+      ok "Single UI instance confirmed"
+    fi
   fi
 
   ok "Update to ${latest_tag} complete."
@@ -923,6 +1016,11 @@ main() {
     write_service_file \
       "${SCRIPT_DIR}/systemd/tempest-ui.service.template" \
       "/etc/systemd/system/tempest-ui.service"
+  fi
+
+  # Needed for in-app Reboot (and backend restart via systemctl) as the service user.
+  if [[ "${MODE}" == "ui" || "${MODE}" == "both" || "${MODE}" == "backend" ]]; then
+    write_tempest_sudoers "${SERVICE_USER}" || warn "Could not configure sudoers for UI reboot/restart."
   fi
 
   info "Reloading systemd..."

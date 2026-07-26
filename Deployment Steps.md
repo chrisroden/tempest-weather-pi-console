@@ -419,9 +419,25 @@ sudo systemctl status tempest-backend.service
 ```
 
 **Restart button fails:**
-- Check that both services are active: `sudo systemctl status tempest-backend tempest-ui`
-- Check logs for errors during restart: `sudo journalctl -u tempest-backend -n 50`
-- Ensure the service user has permission to restart via systemd
+- Restart uses `sudo systemctl restart tempest-backend.service` then `tempest-ui.service` (not home-directory scripts)
+- Check both units: `sudo systemctl status tempest-backend tempest-ui`
+- Logs: `sudo journalctl -u tempest-backend -u tempest-ui -n 80`
+- Service user needs passwordless systemctl for those units via `/etc/sudoers.d/tempest` (written by installer)
+
+**Reboot / Exit / Restart permissions:**
+- UI actions run as the **service user** (`User=` in the unit files) with no password TTY
+- Installer writes `/etc/sudoers.d/tempest` allowing passwordless:
+  - `systemctl restart|stop|start` for `tempest-backend.service` and `tempest-ui.service`
+  - `/usr/sbin/reboot`
+- Manual repair (replace `SERVICE_USER`):
+
+```bash
+echo 'SERVICE_USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart tempest-backend.service, /usr/bin/systemctl restart tempest-ui.service, /usr/bin/systemctl stop tempest-backend.service, /usr/bin/systemctl stop tempest-ui.service, /usr/bin/systemctl start tempest-backend.service, /usr/bin/systemctl start tempest-ui.service, /usr/sbin/reboot' \
+  | sudo tee /etc/sudoers.d/tempest
+sudo chmod 440 /etc/sudoers.d/tempest
+sudo visudo -cf /etc/sudoers.d/tempest
+sudo -u SERVICE_USER sudo -n -l
+```
 
 ### UI Issues
 

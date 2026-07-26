@@ -55,7 +55,8 @@ Before opening a PR, verify all items below:
 - [ ] Coverage collection commands run successfully
 - [ ] New behavior includes tests (or existing tests updated)
 - [ ] No secrets or tokens are committed
-- [ ] Documentation updated when behavior/config/setup changes
+- [ ] Documentation updated when behavior/config/setup changes (required — same change as the code)
+- [ ] Wiki updated when install/ops guidance changes
 - [ ] PR description includes what changed and why
 
 ## Coding Guidelines
@@ -63,7 +64,7 @@ Before opening a PR, verify all items below:
 - Keep changes focused and minimal.
 - Prefer explicit, readable code over clever shortcuts.
 - Add tests for bug fixes and feature changes.
-- Keep public docs and wiki content aligned with behavior.
+- **Docs must match code:** update `Deployment Steps.md`, wiki, and related install docs in the same PR whenever behavior or setup changes. Do not leave references to obsolete home-directory layouts (`~/tempest-backend`, `~/tempest-ui`, start/restart shell scripts); production is `/opt/tempest` + systemd.
 
 ## Contribution License Expectation
 
