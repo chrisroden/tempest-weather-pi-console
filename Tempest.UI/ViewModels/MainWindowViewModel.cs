@@ -632,7 +632,8 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
                         
                         if (stationObs.Summary?.FeelsLike.HasValue == true)
                         {
-                            FeelsLike = stationObs.Summary.FeelsLike.Value;
+                            // WebSocket summary feels_like is always Celsius; convert to °F for display.
+                            FeelsLike = stationObs.Summary.FeelsLike.Value * 9 / 5 + 32;
                         }
                         
                         // Update 24-hour precipitation accumulation (convert from mm to inches)
