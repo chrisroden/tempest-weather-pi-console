@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Configuration;
 using Tempest.REST;
 using Tempest.REST.Models;
+using Tempest.UI.Services;
 using Tempest.WebSocket.Models.Responses;
 using Tempest.WebSocket.Models.Responses.Enums;
 using System.Text.Json;
@@ -948,7 +949,7 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
             StatusMessageColor = StatusInfoColor;
             ShowStatusMessage = true;
 
-            if (!await RunSudoSystemctlAsync("restart", "tempest-backend.service"))
+            if (!await LinuxSudo.RunSystemctlAsync("restart", "tempest-backend.service"))
             {
                 StatusMessage = "Failed to restart backend (sudo/systemctl). Check /etc/sudoers.d/tempest.";
                 StatusMessageColor = StatusErrorColor;
@@ -1005,7 +1006,7 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
             Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Restarting tempest-ui.service via systemctl");
 
             // systemctl restart kills this process; no need to Environment.Exit afterward.
-            if (!await RunSudoSystemctlAsync("restart", "tempest-ui.service"))
+            if (!await LinuxSudo.RunSystemctlAsync("restart", "tempest-ui.service"))
             {
                 // Fallback: exit and let Restart=always bring the UI back.
                 Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] WARN: systemctl restart UI failed; exiting for systemd Restart=always");
@@ -1024,45 +1025,6 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
-    /// <summary>
-    /// Runs passwordless sudo systemctl for tempest units. Requires /etc/sudoers.d/tempest.
-    /// </summary>
-    private static async Task<bool> RunSudoSystemctlAsync(string verb, string unit)
-    {
-        try
-        {
-            var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "sudo",
-                    Arguments = $"-n /usr/bin/systemctl {verb} {unit}",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
-            };
-            process.Start();
-            var stdout = await process.StandardOutput.ReadToEndAsync();
-            var stderr = await process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
-            if (process.ExitCode != 0)
-            {
-                Console.WriteLine(
-                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] systemctl {verb} {unit} exit={process.ExitCode} stderr={stderr.Trim()} stdout={stdout.Trim()}");
-                return false;
-            }
-
-            return true;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] systemctl {verb} {unit} exception: {ex.Message}");
-            return false;
-        }
-    }
-
     [RelayCommand]
     private async Task ExitApp()
     {
@@ -1073,8 +1035,8 @@ public partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 // systemctl stop keeps units down (unlike pkill, which races Restart=always).
-                await RunSudoSystemctlAsync("stop", "tempest-backend.service");
-                await RunSudoSystemctlAsync("stop", "tempest-ui.service");
+                await LinuxSudo.RunSystemctlAsync("stop", "tempest-backend.service");
+                await LinuxSudo.RunSystemctlAsync("stop", "tempest-ui.service");
                 Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Stopped tempest-backend and tempest-ui via systemctl");
                 return;
             }

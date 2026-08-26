@@ -34,6 +34,7 @@ Run test projects individually:
 ```bash
 dotnet test Tempest.WebSocket.Tests/Tempest.WebSocket.Tests.csproj --configuration Release --nologo
 dotnet test TempestBlazorApp.Tests/TempestBlazorApp.Tests.csproj --configuration Release --nologo
+dotnet test Tempest.UI.Tests/Tempest.UI.Tests.csproj --configuration Release --nologo
 ```
 
 Run coverage gates locally (same threshold checks used by CI):
@@ -41,6 +42,7 @@ Run coverage gates locally (same threshold checks used by CI):
 ```bash
 dotnet test Tempest.WebSocket.Tests/Tempest.WebSocket.Tests.csproj --configuration Release --nologo /p:CollectCoverage=true /p:CoverletOutput=./TestResults/WebSocket/ /p:CoverletOutputFormat=cobertura /p:IncludeTestAssembly=true /p:Include="[Tempest.WebSocket.Tests]*" /p:Threshold=70 /p:ThresholdType=line /p:ThresholdStat=total
 dotnet test TempestBlazorApp.Tests/TempestBlazorApp.Tests.csproj --configuration Release --nologo /p:CollectCoverage=true /p:CoverletOutput=./TestResults/Blazor/ /p:CoverletOutputFormat=cobertura /p:IncludeTestAssembly=true /p:Include="[TempestBlazorApp.Tests]*" /p:Threshold=70 /p:ThresholdType=line /p:ThresholdStat=total
+dotnet test Tempest.UI.Tests/Tempest.UI.Tests.csproj --configuration Release --nologo /p:CollectCoverage=true /p:CoverletOutput=./TestResults/UI/ /p:CoverletOutputFormat=cobertura /p:IncludeTestAssembly=true /p:Include="[Tempest.UI.Tests]*" /p:Threshold=70 /p:ThresholdType=line /p:ThresholdStat=total
 ```
 
 CI enforces a minimum of 70% line coverage for each test project module.

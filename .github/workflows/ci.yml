@@ -34,8 +34,14 @@ jobs:
       - name: Test Blazor App
         run: dotnet test TempestBlazorApp.Tests/TempestBlazorApp.Tests.csproj --configuration Release --no-build --nologo
 
+      - name: Test UI
+        run: dotnet test Tempest.UI.Tests/Tempest.UI.Tests.csproj --configuration Release --no-build --nologo
+
       - name: Coverage gate (WebSocket tests, min 70% line)
         run: dotnet test Tempest.WebSocket.Tests/Tempest.WebSocket.Tests.csproj --configuration Release --no-build --nologo /p:CollectCoverage=true /p:CoverletOutput=./TestResults/WebSocket/ /p:CoverletOutputFormat=cobertura /p:IncludeTestAssembly=true /p:Include="[Tempest.WebSocket.Tests]*" /p:Threshold=70 /p:ThresholdType=line /p:ThresholdStat=total
 
       - name: Coverage gate (Blazor tests, min 70% line)
         run: dotnet test TempestBlazorApp.Tests/TempestBlazorApp.Tests.csproj --configuration Release --no-build --nologo /p:CollectCoverage=true /p:CoverletOutput=./TestResults/Blazor/ /p:CoverletOutputFormat=cobertura /p:IncludeTestAssembly=true /p:Include="[TempestBlazorApp.Tests]*" /p:Threshold=70 /p:ThresholdType=line /p:ThresholdStat=total
+
+      - name: Coverage gate (UI tests, min 70% line)
+        run: dotnet test Tempest.UI.Tests/Tempest.UI.Tests.csproj --configuration Release --no-build --nologo /p:CollectCoverage=true /p:CoverletOutput=./TestResults/UI/ /p:CoverletOutputFormat=cobertura /p:IncludeTestAssembly=true /p:Include="[Tempest.UI.Tests]*" /p:Threshold=70 /p:ThresholdType=line /p:ThresholdStat=total

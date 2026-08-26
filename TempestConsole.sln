@@ -12,6 +12,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tempest.WebSocket.Tests", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TempestBlazorApp.Tests", "TempestBlazorApp.Tests\TempestBlazorApp.Tests.csproj", "{ACE07577-5D13-4267-8049-7B1B3724791A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tempest.UI.Tests", "Tempest.UI.Tests\Tempest.UI.Tests.csproj", "{36056B4F-CF93-4F03-9606-9CD6C78F3AEF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -94,6 +96,18 @@ Global
 		{ACE07577-5D13-4267-8049-7B1B3724791A}.Release|x64.Build.0 = Release|Any CPU
 		{ACE07577-5D13-4267-8049-7B1B3724791A}.Release|x86.ActiveCfg = Release|Any CPU
 		{ACE07577-5D13-4267-8049-7B1B3724791A}.Release|x86.Build.0 = Release|Any CPU
+		{36056B4F-CF93-4F03-9606-9CD6C78F3AEF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{36056B4F-CF93-4F03-9606-9CD6C78F3AEF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{36056B4F-CF93-4F03-9606-9CD6C78F3AEF}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{36056B4F-CF93-4F03-9606-9CD6C78F3AEF}.Debug|x64.Build.0 = Debug|Any CPU
+		{36056B4F-CF93-4F03-9606-9CD6C78F3AEF}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{36056B4F-CF93-4F03-9606-9CD6C78F3AEF}.Debug|x86.Build.0 = Debug|Any CPU
+		{36056B4F-CF93-4F03-9606-9CD6C78F3AEF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{36056B4F-CF93-4F03-9606-9CD6C78F3AEF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{36056B4F-CF93-4F03-9606-9CD6C78F3AEF}.Release|x64.ActiveCfg = Release|Any CPU
+		{36056B4F-CF93-4F03-9606-9CD6C78F3AEF}.Release|x64.Build.0 = Release|Any CPU
+		{36056B4F-CF93-4F03-9606-9CD6C78F3AEF}.Release|x86.ActiveCfg = Release|Any CPU
+		{36056B4F-CF93-4F03-9606-9CD6C78F3AEF}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

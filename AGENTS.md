@@ -16,8 +16,9 @@ Whenever you change behavior, configuration, install/update flow, UI controls, s
 | Install root | `/opt/tempest` (default) |
 | Backend | `/opt/tempest/backend` + `tempest-backend.service` |
 | UI | `/opt/tempest/ui` + `tempest-ui.service` |
-| Installer copy | `/opt/tempest/install-pi.sh` |
+| Installer copy | `/opt/tempest/install-pi.sh` (root-owned) |
+| In-app update helper | `/usr/local/sbin/tempest-update` (root-owned) |
 | Sudoers for UI controls | `/etc/sudoers.d/tempest` |
-| Restart / Exit / Reboot | `systemctl` / `reboot` via passwordless sudo — **not** `~/tempest-*/` scripts |
+| Restart / Exit / Reboot / Update | `systemctl` / `reboot` / `tempest-update` via passwordless sudo — **not** `~/tempest-*/` scripts |
 
 Do not reintroduce home-directory start scripts (`~/tempest-backend`, `~/tempest-ui`, `start-tempest-*.sh`, `restart-tempest-*.sh`) for production control flow.

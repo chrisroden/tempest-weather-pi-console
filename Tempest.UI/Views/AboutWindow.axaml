@@ -2,14 +2,14 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="Tempest.UI.Views.AboutWindow"
         Title="About"
-        Width="420"
-        Height="240"
+        Width="720"
+        Height="500"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource WindowBackgroundBrush}">
 
-    <Grid Margin="30" RowDefinitions="Auto,*,Auto">
-        <StackPanel Spacing="8" Margin="0,0,0,16">
+    <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto">
+        <StackPanel Spacing="6" Margin="0,0,0,12">
             <TextBlock Text="About"
                        FontSize="24"
                        FontWeight="Bold"
@@ -25,7 +25,8 @@
                 BorderBrush="{DynamicResource AccentBrush}"
                 BorderThickness="1"
                 CornerRadius="8"
-                Padding="16">
+                Padding="16"
+                Margin="0,0,0,12">
             <StackPanel Spacing="8">
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <TextBlock Text="Version:"
@@ -41,17 +42,68 @@
                            FontSize="13"
                            TextWrapping="Wrap"
                            Foreground="{DynamicResource TextSecondaryBrush}"/>
+                <TextBlock x:Name="StatusText"
+                           FontSize="14"
+                           FontWeight="SemiBold"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextPrimaryBrush}"
+                           Text="Check GitHub for a newer release."/>
             </StackPanel>
         </Border>
 
-        <Button Grid.Row="2"
-                Content="Close"
-                HorizontalAlignment="Right"
-                Margin="0,16,0,0"
-                MinWidth="100"
-                Padding="16,10"
-                Background="{DynamicResource ForecastDayBackgroundBrush}"
-                Foreground="{DynamicResource TextPrimaryBrush}"
-                Click="OnCloseClick"/>
+        <Border Grid.Row="2"
+                Background="{DynamicResource CardBackgroundBrush}"
+                BorderBrush="{DynamicResource AccentBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="8">
+            <TextBox x:Name="UpdateLog"
+                     IsReadOnly="True"
+                     AcceptsReturn="True"
+                     TextWrapping="Wrap"
+                     FontFamily="Menlo, Courier New, monospace"
+                     FontSize="12"
+                     BorderThickness="0"
+                     Background="Transparent"
+                     Foreground="{DynamicResource TextPrimaryBrush}"
+                     PlaceholderText="Update progress appears here."/>
+        </Border>
+
+        <StackPanel Grid.Row="3"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8"
+                    Margin="0,16,0,0">
+            <Button x:Name="CheckUpdatesButton"
+                    Content="Check for updates"
+                    MinWidth="160"
+                    Padding="16,10"
+                    Background="{DynamicResource ForecastDayBackgroundBrush}"
+                    Foreground="{DynamicResource TextPrimaryBrush}"
+                    Click="OnCheckUpdatesClick"/>
+            <Button x:Name="UpdateNowButton"
+                    Content="Update now"
+                    MinWidth="140"
+                    Padding="16,10"
+                    IsVisible="False"
+                    Background="{DynamicResource AccentBrush}"
+                    Foreground="{DynamicResource TextPrimaryBrush}"
+                    Click="OnUpdateNowClick"/>
+            <Button x:Name="RestartButton"
+                    Content="Restart"
+                    MinWidth="120"
+                    Padding="16,10"
+                    IsVisible="False"
+                    Background="{DynamicResource AccentBrush}"
+                    Foreground="{DynamicResource TextPrimaryBrush}"
+                    Click="OnRestartClick"/>
+            <Button x:Name="CloseButton"
+                    Content="Close"
+                    MinWidth="100"
+                    Padding="16,10"
+                    Background="{DynamicResource ForecastDayBackgroundBrush}"
+                    Foreground="{DynamicResource TextPrimaryBrush}"
+                    Click="OnCloseClick"/>
+        </StackPanel>
     </Grid>
 </Window>

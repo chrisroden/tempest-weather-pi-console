@@ -254,6 +254,7 @@ Update options:
   --update                         Check GitHub and apply latest release
   --install-root <path>            Default: /opt/tempest
   --yes                            Apply without prompting
+  --keep-ui-running                Leave tempest-ui running (used by About → Update now)
 ```
 
 ## Part 3: Verify Services
@@ -385,6 +386,7 @@ The application is optimized for:
 - Touch-friendly interface with large buttons
 - Header menu: Themes, Restart Service & UI, Reboot, About, Exit
 - About shows the installed package version from `/opt/tempest/VERSION` (written by `install-pi.sh` on install/update; shows `unknown` if the file is missing)
+- About **Check for updates** compares that version to the latest GitHub release. If you are already current, it says so. If a newer release exists, **Update now** appears, streams installer output, and on success shows **Restart** (the UI is not restarted automatically)
 - Connection status indicator (green/red dot)
 - Status notification banner with color-coded messages (orange for info, red for errors)
 
@@ -425,16 +427,26 @@ sudo systemctl status tempest-backend.service
 - Logs: `sudo journalctl -u tempest-backend -u tempest-ui -n 80`
 - Service user needs passwordless systemctl for those units via `/etc/sudoers.d/tempest` (written by installer)
 
-**Reboot / Exit / Restart permissions:**
+**About → Update now fails:**
+- Requires `/usr/local/sbin/tempest-update` (root-owned) and a sudoers line for that path
+- First enablement: `sudo /opt/tempest/install-pi.sh --update --yes` (or a fresh install) so helper + sudoers are written
+- Confirm: `sudo -u SERVICE_USER sudo -n -l` lists `/usr/local/sbin/tempest-update`
+- Confirm installer is not user-writable: `ls -l /opt/tempest/install-pi.sh` should be `root root` and `755`
+
+**Reboot / Exit / Restart / Update permissions:**
 - UI actions run as the **service user** (`User=` in the unit files) with no password TTY
 - Installer writes `/etc/sudoers.d/tempest` allowing passwordless:
   - `systemctl restart|stop|start` for `tempest-backend.service` and `tempest-ui.service`
   - `/usr/sbin/reboot`
+  - `/usr/local/sbin/tempest-update` (About → Update now)
+- Installer also writes root-owned `/usr/local/sbin/tempest-update` and keeps `/opt/tempest/install-pi.sh` root-owned (`755`)
 - Manual repair (replace `SERVICE_USER`):
 
 ```bash
-echo 'SERVICE_USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart tempest-backend.service, /usr/bin/systemctl restart tempest-ui.service, /usr/bin/systemctl stop tempest-backend.service, /usr/bin/systemctl stop tempest-ui.service, /usr/bin/systemctl start tempest-backend.service, /usr/bin/systemctl start tempest-ui.service, /usr/sbin/reboot' \
-  | sudo tee /etc/sudoers.d/tempest
+sudo tee /etc/sudoers.d/tempest >/dev/null <<'EOF'
+SERVICE_USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart tempest-backend.service, /usr/bin/systemctl restart tempest-ui.service, /usr/bin/systemctl stop tempest-backend.service, /usr/bin/systemctl stop tempest-ui.service, /usr/bin/systemctl start tempest-backend.service, /usr/bin/systemctl start tempest-ui.service, /usr/sbin/reboot
+SERVICE_USER ALL=(ALL) NOPASSWD: /usr/local/sbin/tempest-update
+EOF
 sudo chmod 440 /etc/sudoers.d/tempest
 sudo visudo -cf /etc/sudoers.d/tempest
 sudo -u SERVICE_USER sudo -n -l
@@ -563,13 +575,27 @@ htop
 
 ## Updating the Application
 
+### From the UI (About)
+
+On a Pi install whose sudoers and helper are already in place:
+
+1. Open the header menu → **About**
+2. Tap **Check for updates**
+3. If you are current, About says you are on the latest version
+4. If a newer GitHub release exists, tap **Update now** and watch the log
+5. When it succeeds, tap **Restart** to load the new UI (the installer leaves the UI running so you can see progress)
+
+Existing installs need **one** CLI update or reinstall of a release that writes `/usr/local/sbin/tempest-update` and the extra sudoers line before About can apply updates.
+
+### From a terminal
+
 Once the installer is in place at `/opt/tempest/install-pi.sh`, updates are a single command:
 
 ```bash
 sudo /opt/tempest/install-pi.sh --update --yes
 ```
 
-This downloads the latest release from GitHub, swaps the binaries, restarts both services, and refreshes the installer script itself so future updates continue to work.
+This downloads the latest release from GitHub, swaps the binaries, restarts both services, and refreshes the installer script itself so future updates continue to work. The CLI path still stops and restarts `tempest-ui`; the in-app path uses `--keep-ui-running` and waits for **Restart** in About.
 
 ### Preview Before Applying
 

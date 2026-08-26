@@ -55,10 +55,12 @@ WRITE_CONFIG_FILE=""
 AUTO_YES="no"
 DRY_RUN="no"
 CMD="install"
+KEEP_UI_RUNNING="no"
 RELEASE_VERSION=""
 BACKEND_ARCHIVE_URL=""
 UI_ARCHIVE_URL=""
 GITHUB_REPO="chrisroden/tempest-weather-pi-console"
+UPDATE_HELPER="/usr/local/sbin/tempest-update"
 
 usage() {
   cat <<'EOF'
@@ -91,6 +93,7 @@ Update options:
   --backend-archive-url <url>  Override auto-detected backend asset URL
   --ui-archive-url <url>       Override auto-detected UI asset URL
   --yes                        Apply update without prompting
+  --keep-ui-running            Do not stop or restart tempest-ui (used by the in-app About update)
 
   Expected GitHub release asset names: backend-linux-arm64.tar.gz, ui-linux-arm64.tar.gz
   (or ...-linux-arm.tar.gz for 32-bit). Override with --backend-archive-url / --ui-archive-url.
@@ -141,6 +144,7 @@ parse_args() {
       --yes) AUTO_YES="yes"; shift ;;
       --dry-run) DRY_RUN="yes"; shift ;;
       --update) CMD="update"; shift ;;
+      --keep-ui-running) KEEP_UI_RUNNING="yes"; shift ;;
       --release-version) RELEASE_VERSION="${2:-}"; shift 2 ;;
       --backend-archive-url) BACKEND_ARCHIVE_URL="${2:-}"; shift 2 ;;
       --ui-archive-url) UI_ARCHIVE_URL="${2:-}"; shift 2 ;;
@@ -403,15 +407,48 @@ write_service_file() {
     "${template_file}" | ${SUDO} tee "${out_file}" >/dev/null
 }
 
+# Keep install-pi.sh root-owned so passwordless sudo of the update helper cannot
+# be turned into arbitrary root execution by rewriting a user-writable script.
+secure_installer_ownership() {
+  local installer="${INSTALL_ROOT}/install-pi.sh"
+  if [[ -f "${installer}" ]]; then
+    ${SUDO} chown root:root "${installer}"
+    ${SUDO} chmod 755 "${installer}"
+  fi
+}
+
+# Root-owned, no-arg helper so sudoers can allow in-app updates without matching
+# extra flags. The helper always runs --update --yes --keep-ui-running.
+write_tempest_update_helper() {
+  local helper="${UPDATE_HELPER}"
+  local installer="${INSTALL_ROOT:-/opt/tempest}/install-pi.sh"
+  local tmp
+  tmp="$(mktemp)"
+  cat > "${tmp}" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+INSTALLER='${installer}'
+if [[ ! -x "\${INSTALLER}" ]]; then
+  echo "Missing installer: \${INSTALLER}" >&2
+  exit 1
+fi
+exec "\${INSTALLER}" --update --yes --keep-ui-running
+EOF
+  ${SUDO} install -o root -g root -m 755 "${tmp}" "${helper}"
+  rm -f "${tmp}"
+  ok "Wrote ${helper}"
+}
+
 # UI Reboot runs `sudo reboot` as the service user (no TTY). Restart may call systemctl.
-# Install a narrow passwordless rule for those commands only.
+# About → Update now runs ${UPDATE_HELPER}. Install a narrow passwordless rule for those only.
 write_tempest_sudoers() {
   local user="${1:-${SERVICE_USER}}"
   local sudoers_file="/etc/sudoers.d/tempest"
-  local line
+  local sysctl_line
+  local update_line
 
   if [[ -z "${user}" ]]; then
-    warn "No service user set; skipping sudoers for UI reboot/restart."
+    warn "No service user set; skipping sudoers for UI reboot/restart/update."
     return 0
   fi
 
@@ -422,14 +459,17 @@ write_tempest_sudoers() {
   fi
 
   if ! id -u "${user}" >/dev/null 2>&1; then
-    warn "Service user ${user} does not exist; skipping sudoers for UI reboot/restart."
+    warn "Service user ${user} does not exist; skipping sudoers for UI reboot/restart/update."
     return 0
   fi
 
-  # UI Restart/Exit/Reboot use passwordless sudo systemctl + reboot (no TTY under systemd).
-  line="${user} ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart tempest-backend.service, /usr/bin/systemctl restart tempest-ui.service, /usr/bin/systemctl stop tempest-backend.service, /usr/bin/systemctl stop tempest-ui.service, /usr/bin/systemctl start tempest-backend.service, /usr/bin/systemctl start tempest-ui.service, /usr/sbin/reboot"
-  info "Configuring passwordless sudo for UI restart/stop/reboot (${user})..."
-  printf '%s\n' "${line}" | ${SUDO} tee "${sudoers_file}" >/dev/null
+  write_tempest_update_helper || warn "Could not write ${UPDATE_HELPER}"
+
+  # UI Restart/Exit/Reboot/Update use passwordless sudo (no TTY under systemd).
+  sysctl_line="${user} ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart tempest-backend.service, /usr/bin/systemctl restart tempest-ui.service, /usr/bin/systemctl stop tempest-backend.service, /usr/bin/systemctl stop tempest-ui.service, /usr/bin/systemctl start tempest-backend.service, /usr/bin/systemctl start tempest-ui.service, /usr/sbin/reboot"
+  update_line="${user} ALL=(ALL) NOPASSWD: ${UPDATE_HELPER}"
+  info "Configuring passwordless sudo for UI restart/stop/reboot/update (${user})..."
+  printf '%s\n%s\n' "${sysctl_line}" "${update_line}" | ${SUDO} tee "${sudoers_file}" >/dev/null
   ${SUDO} chmod 440 "${sudoers_file}"
   if ! ${SUDO} visudo -cf "${sudoers_file}" >/dev/null; then
     err "Generated ${sudoers_file} failed visudo validation; removing it."
@@ -558,8 +598,12 @@ run_update() {
     ${SUDO} systemctl stop tempest-backend.service || true
   fi
   if [[ "${MODE}" == "ui" || "${MODE}" == "both" ]]; then
-    info "Stopping tempest-ui..."
-    ${SUDO} systemctl stop tempest-ui.service || true
+    if [[ "${KEEP_UI_RUNNING}" == "yes" ]]; then
+      info "Leaving tempest-ui running (in-app update)."
+    else
+      info "Stopping tempest-ui..."
+      ${SUDO} systemctl stop tempest-ui.service || true
+    fi
   fi
 
   # Ensure a single managed instance: remove any orphan processes left outside systemd
@@ -587,7 +631,7 @@ run_update() {
   if [[ "${MODE}" == "backend" || "${MODE}" == "both" ]]; then
     ensure_tempest_processes_stopped "${INSTALL_ROOT}/backend/TempestBlazorApp" "backend" || true
   fi
-  if [[ "${MODE}" == "ui" || "${MODE}" == "both" ]]; then
+  if [[ "${KEEP_UI_RUNNING}" != "yes" ]] && [[ "${MODE}" == "ui" || "${MODE}" == "both" ]]; then
     ensure_tempest_processes_stopped "${INSTALL_ROOT}/ui/Tempest.UI" "UI" || true
   fi
 
@@ -685,9 +729,10 @@ run_update() {
   if id -u "${SERVICE_USER}" >/dev/null 2>&1; then
     ${SUDO} chown -R "${SERVICE_USER}":"${SERVICE_USER}" "${INSTALL_ROOT}"
   fi
+  secure_installer_ownership
 
-  # Ensure UI reboot/restart sudoers match the service user (repairs old pi/PASSWD rules).
-  write_tempest_sudoers "${SERVICE_USER}" || warn "Could not configure sudoers for UI reboot/restart."
+  # Ensure UI reboot/restart/update sudoers match the service user (repairs old pi/PASSWD rules).
+  write_tempest_sudoers "${SERVICE_USER}" || warn "Could not configure sudoers for UI reboot/restart/update."
 
   # Record the new version
   printf '%s\n' "${latest_tag}" | ${SUDO} tee "${INSTALL_ROOT}/VERSION" > /dev/null
@@ -697,9 +742,10 @@ run_update() {
   local tmp_installer
   tmp_installer="$(mktemp)"
   if curl -fsSL "${installer_url}" -o "${tmp_installer}"; then
-    ${SUDO} install -m 755 "${tmp_installer}" "${INSTALL_ROOT}/install-pi.sh"
+    ${SUDO} install -o root -g root -m 755 "${tmp_installer}" "${INSTALL_ROOT}/install-pi.sh"
   else
     warn "Could not download updated installer; existing copy left in place."
+    secure_installer_ownership
   fi
   rm -f "${tmp_installer}"
 
@@ -708,7 +754,11 @@ run_update() {
     ${SUDO} systemctl start tempest-backend.service
   fi
   if [[ "${MODE}" == "ui" || "${MODE}" == "both" ]]; then
-    ${SUDO} systemctl start tempest-ui.service || true
+    if [[ "${KEEP_UI_RUNNING}" == "yes" ]]; then
+      info "UI left running. Restart from the About dialog when ready."
+    else
+      ${SUDO} systemctl start tempest-ui.service || true
+    fi
   fi
 
   # Single-instance check: exactly one process per component under INSTALL_ROOT
@@ -1005,6 +1055,7 @@ main() {
   else
     warn "Service user ${SERVICE_USER} does not exist. Skipping ownership update."
   fi
+  secure_installer_ownership
 
   if [[ "${MODE}" == "backend" || "${MODE}" == "both" ]]; then
     write_service_file \
@@ -1018,9 +1069,9 @@ main() {
       "/etc/systemd/system/tempest-ui.service"
   fi
 
-  # Needed for in-app Reboot (and backend restart via systemctl) as the service user.
+  # Needed for in-app Reboot/Restart/Update as the service user.
   if [[ "${MODE}" == "ui" || "${MODE}" == "both" || "${MODE}" == "backend" ]]; then
-    write_tempest_sudoers "${SERVICE_USER}" || warn "Could not configure sudoers for UI reboot/restart."
+    write_tempest_sudoers "${SERVICE_USER}" || warn "Could not configure sudoers for UI reboot/restart/update."
   fi
 
   info "Reloading systemd..."
@@ -1060,8 +1111,9 @@ main() {
 
   printf '%s\n' "${RELEASE_VERSION:-dev-$(date +%Y%m%d%H%M%S)}" | ${SUDO} tee "${INSTALL_ROOT}/VERSION" > /dev/null
 
-  # Keep the installer itself in INSTALL_ROOT so `sudo bash /opt/tempest/install-pi.sh --update` works
-  ${SUDO} install -m 755 "${BASH_SOURCE[0]:-$0}" "${INSTALL_ROOT}/install-pi.sh"
+  # Keep the installer itself in INSTALL_ROOT so `sudo bash /opt/tempest/install-pi.sh --update` works.
+  # Root ownership is required because in-app updates sudo this file via /usr/local/sbin/tempest-update.
+  ${SUDO} install -o root -g root -m 755 "${BASH_SOURCE[0]:-$0}" "${INSTALL_ROOT}/install-pi.sh"
 
   ok "Install complete."
   printf "\nUseful commands:\n"
