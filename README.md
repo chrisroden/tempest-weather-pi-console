@@ -10,6 +10,8 @@ Tempest Weather Pi Console includes:
 
 See `Deployment Steps.md` for full setup and deployment guidance.
 
+On a Pi install, the header menu **About** item shows the installed package version from `/opt/tempest/VERSION` (written by `install-pi.sh` on install/update).
+
 ## Security
 
 Security policy and reporting guidance: `.github/SECURITY.md`

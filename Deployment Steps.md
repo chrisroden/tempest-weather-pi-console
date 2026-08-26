@@ -383,7 +383,8 @@ The application is optimized for:
 - Resolution: 1024x600
 - Fullscreen mode (no window decorations via `SystemDecorations="None"`)
 - Touch-friendly interface with large buttons
-- Three control buttons: Exit (cyan), Restart (red), Reboot (orange)
+- Header menu: Themes, Restart Service & UI, Reboot, About, Exit
+- About shows the installed package version from `/opt/tempest/VERSION` (written by `install-pi.sh` on install/update; shows `unknown` if the file is missing)
 - Connection status indicator (green/red dot)
 - Status notification banner with color-coded messages (orange for info, red for errors)
 

@@ -568,6 +568,7 @@
                 <Button Classes="header-menu-item" Content="Themes" Click="OnThemesMenuItemClick"/>
                 <Button Classes="header-menu-item" Content="Restart Service &amp; UI" Click="OnRestartMenuItemClick"/>
                 <Button Classes="header-menu-item" Content="Reboot" Click="OnRebootMenuItemClick"/>
+                <Button Classes="header-menu-item" Content="About" Click="OnAboutMenuItemClick"/>
                 <Button Classes="header-menu-item" Content="Exit" Click="OnExitMenuItemClick"/>
             </StackPanel>
         </Border>
