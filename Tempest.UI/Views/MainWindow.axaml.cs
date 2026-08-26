@@ -13,6 +13,7 @@ namespace Tempest.UI.Views;
 public partial class MainWindow : Window
 {
     private bool _isOpeningThemesDialog;
+    private bool _isOpeningAboutDialog;
 
     public MainWindow()
     {
@@ -93,6 +94,14 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void OnAboutMenuItemClick(object? sender, RoutedEventArgs e)
+    {
+        Console.WriteLine($"[UI-MENU] About click at {DateTime.Now:O}");
+        Console.Out.Flush();
+        SetHeaderMenuOpen(false);
+        await OpenAboutDialogAsync();
+    }
+
     private async Task OpenThemesDialogAsync()
     {
         if (_isOpeningThemesDialog)
@@ -115,6 +124,26 @@ public partial class MainWindow : Window
         finally
         {
             _isOpeningThemesDialog = false;
+        }
+    }
+
+    private async Task OpenAboutDialogAsync()
+    {
+        if (_isOpeningAboutDialog)
+        {
+            return;
+        }
+
+        _isOpeningAboutDialog = true;
+
+        try
+        {
+            var dialog = new AboutWindow(InstallVersion.Read());
+            await dialog.ShowDialog(this);
+        }
+        finally
+        {
+            _isOpeningAboutDialog = false;
         }
     }
 }
