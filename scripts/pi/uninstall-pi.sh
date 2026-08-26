@@ -22,6 +22,7 @@ for svc in tempest-ui.service tempest-backend.service; do
 done
 
 ${SUDO} rm -f /etc/systemd/system/tempest-backend.service /etc/systemd/system/tempest-ui.service
+${SUDO} rm -f /usr/local/sbin/tempest-update /etc/sudoers.d/tempest
 ${SUDO} systemctl daemon-reload
 ${SUDO} rm -rf "${INSTALL_ROOT}"
 
