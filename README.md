@@ -10,7 +10,7 @@ Tempest Weather Pi Console includes:
 
 See `Deployment Steps.md` for full setup and deployment guidance.
 
-On a Pi install, the header menu **About** item shows the installed package version from `/opt/tempest/VERSION` (written by `install-pi.sh` on install/update). Use **Check for updates** to compare that version to the latest GitHub release. If a newer release exists, **Update now** runs `/usr/local/sbin/tempest-update` (which calls `install-pi.sh --update --yes --keep-ui-running`) and streams progress in the dialog. After a successful update, tap **Restart** to load the new binaries. Existing Pis need one root install/update of a release that includes this helper before in-app updates work.
+On a Pi install, the header menu **About** item shows the installed package version from `/opt/tempest/VERSION` (written by `install-pi.sh` on install/update) and checks GitHub for a newer release when the dialog opens. If you are current, it says you are on the latest version. If a newer release exists, **Update now** runs `/usr/local/sbin/tempest-update` (which calls `install-pi.sh --update --yes --keep-ui-running`) and streams progress in the dialog. After a successful update, tap **Restart** to load the new binaries. Existing Pis need one root install/update of a release that includes this helper before in-app updates work.
 
 ## Security
 
