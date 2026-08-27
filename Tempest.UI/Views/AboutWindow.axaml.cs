@@ -2,6 +2,7 @@ using System;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
@@ -78,12 +79,10 @@ public partial class AboutWindow : Window
             {
                 StatusText.Text = $"{result.Message} {applyReason}";
             }
-            AppendLog(StatusText.Text);
         }
         catch (Exception ex)
         {
             StatusText.Text = $"Could not check for updates: {ex.Message}";
-            AppendLog(StatusText.Text);
         }
         finally
         {
@@ -102,7 +101,6 @@ public partial class AboutWindow : Window
         if (!InstallUpdateRunner.CanApply(out var reason))
         {
             StatusText.Text = reason;
-            AppendLog(reason);
             return;
         }
 
@@ -110,6 +108,7 @@ public partial class AboutWindow : Window
         SetButtonsEnabled(false);
         UpdateNowButton.IsVisible = false;
         RestartButton.IsVisible = false;
+        ShowUpdateLog();
         StatusText.Text = "Updating... this can take a few minutes.";
         AppendLog("Starting update...");
 
@@ -163,7 +162,10 @@ public partial class AboutWindow : Window
         _busy = true;
         SetButtonsEnabled(false);
         StatusText.Text = "Restarting backend service...";
-        AppendLog(StatusText.Text);
+        if (UpdateLogPanel.IsVisible)
+        {
+            AppendLog(StatusText.Text);
+        }
 
         if (!await LinuxSudo.RunSystemctlAsync("restart", "tempest-backend.service"))
         {
@@ -203,12 +205,25 @@ public partial class AboutWindow : Window
         CloseButton.IsEnabled = enabled;
     }
 
+    private void ShowUpdateLog()
+    {
+        if (UpdateLogPanel.IsVisible)
+        {
+            return;
+        }
+
+        UpdateLogPanel.IsVisible = true;
+        Height = 500;
+    }
+
     private void AppendLog(string line)
     {
         if (string.IsNullOrWhiteSpace(line))
         {
             return;
         }
+
+        ShowUpdateLog();
 
         if (string.IsNullOrEmpty(UpdateLog.Text))
         {
@@ -219,7 +234,10 @@ public partial class AboutWindow : Window
             UpdateLog.Text += Environment.NewLine + line;
         }
 
-        UpdateLog.CaretIndex = UpdateLog.Text?.Length ?? 0;
+        Dispatcher.UIThread.Post(() =>
+        {
+            UpdateLogScroller.Offset = new Vector(0, UpdateLogScroller.Extent.Height);
+        }, DispatcherPriority.Background);
     }
 
     private void OnClosed(object? sender, EventArgs e)

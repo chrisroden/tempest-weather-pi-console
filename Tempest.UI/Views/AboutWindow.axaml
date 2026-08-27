@@ -3,12 +3,66 @@
         x:Class="Tempest.UI.Views.AboutWindow"
         Title="About"
         Width="720"
-        Height="500"
+        Height="320"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource WindowBackgroundBrush}">
 
-    <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto">
+    <Window.Styles>
+        <Style Selector="Button.dialog-button">
+            <Setter Property="MinHeight" Value="44"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Background" Value="{DynamicResource ForecastDayBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style Selector="Button.dialog-button /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource ForecastDayBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+        <Style Selector="Button.dialog-button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+        <Style Selector="Button.dialog-button.accent-action /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+        <Style Selector="Button.dialog-button.accent-action:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Opacity" Value="0.9"/>
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+        <Style Selector="Button.dialog-button:disabled /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource TextSecondaryBrush}"/>
+            <Setter Property="Opacity" Value="1"/>
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+        <Style Selector="Button.dialog-button:disabled AccessText">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="Opacity" Value="1"/>
+        </Style>
+        <Style Selector="TextBlock#StatusText">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+        <Style Selector="TextBlock#UpdateLog">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto">
         <StackPanel Spacing="6" Margin="0,0,0,12">
             <TextBlock Text="About"
                        FontSize="24"
@@ -43,66 +97,61 @@
                            TextWrapping="Wrap"
                            Foreground="{DynamicResource TextSecondaryBrush}"/>
                 <TextBlock x:Name="StatusText"
-                           FontSize="14"
-                           FontWeight="SemiBold"
+                           FontSize="15"
+                           FontWeight="Bold"
                            TextWrapping="Wrap"
                            Foreground="{DynamicResource TextPrimaryBrush}"
                            Text="Check GitHub for a newer release."/>
             </StackPanel>
         </Border>
 
-        <Border Grid.Row="2"
+        <Border x:Name="UpdateLogPanel"
+                Grid.Row="2"
+                IsVisible="False"
                 Background="{DynamicResource CardBackgroundBrush}"
                 BorderBrush="{DynamicResource AccentBrush}"
                 BorderThickness="1"
                 CornerRadius="8"
-                Padding="8">
-            <TextBox x:Name="UpdateLog"
-                     IsReadOnly="True"
-                     AcceptsReturn="True"
-                     TextWrapping="Wrap"
-                     FontFamily="Menlo, Courier New, monospace"
-                     FontSize="12"
-                     BorderThickness="0"
-                     Background="Transparent"
-                     Foreground="{DynamicResource TextPrimaryBrush}"
-                     PlaceholderText="Update progress appears here."/>
+                Padding="8"
+                Margin="0,0,0,12"
+                MinHeight="160">
+            <ScrollViewer x:Name="UpdateLogScroller"
+                          HorizontalScrollBarVisibility="Disabled"
+                          VerticalScrollBarVisibility="Auto">
+                <TextBlock x:Name="UpdateLog"
+                           TextWrapping="Wrap"
+                           FontFamily="Menlo, Courier New, monospace"
+                           FontSize="13"
+                           FontWeight="Bold"
+                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+            </ScrollViewer>
         </Border>
 
         <StackPanel Grid.Row="3"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
-                    Spacing="8"
-                    Margin="0,16,0,0">
+                    Spacing="8">
             <Button x:Name="CheckUpdatesButton"
+                    Classes="dialog-button"
                     Content="Check for updates"
-                    MinWidth="160"
-                    Padding="16,10"
-                    Background="{DynamicResource ForecastDayBackgroundBrush}"
-                    Foreground="{DynamicResource TextPrimaryBrush}"
+                    MinWidth="168"
                     Click="OnCheckUpdatesClick"/>
             <Button x:Name="UpdateNowButton"
+                    Classes="dialog-button accent-action"
                     Content="Update now"
                     MinWidth="140"
-                    Padding="16,10"
                     IsVisible="False"
-                    Background="{DynamicResource AccentBrush}"
-                    Foreground="{DynamicResource TextPrimaryBrush}"
                     Click="OnUpdateNowClick"/>
             <Button x:Name="RestartButton"
+                    Classes="dialog-button accent-action"
                     Content="Restart"
                     MinWidth="120"
-                    Padding="16,10"
                     IsVisible="False"
-                    Background="{DynamicResource AccentBrush}"
-                    Foreground="{DynamicResource TextPrimaryBrush}"
                     Click="OnRestartClick"/>
             <Button x:Name="CloseButton"
+                    Classes="dialog-button"
                     Content="Close"
                     MinWidth="100"
-                    Padding="16,10"
-                    Background="{DynamicResource ForecastDayBackgroundBrush}"
-                    Foreground="{DynamicResource TextPrimaryBrush}"
                     Click="OnCloseClick"/>
         </StackPanel>
     </Grid>
