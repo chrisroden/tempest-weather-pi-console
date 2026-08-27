@@ -116,7 +116,7 @@
                 CornerRadius="8"
                 Padding="8"
                 Margin="0,0,0,12"
-                MinHeight="160">
+                Height="160">
             <ScrollViewer x:Name="UpdateLogScroller"
                           HorizontalScrollBarVisibility="Disabled"
                           VerticalScrollBarVisibility="Auto">
