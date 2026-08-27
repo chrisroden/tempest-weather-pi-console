@@ -215,7 +215,6 @@ public partial class AboutWindow : Window
         }
 
         UpdateLogPanel.IsVisible = true;
-        Height = 500;
         Dispatcher.UIThread.Post(CenterOnOwner, DispatcherPriority.Loaded);
     }
 
