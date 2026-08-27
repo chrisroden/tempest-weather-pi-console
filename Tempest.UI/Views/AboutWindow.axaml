@@ -3,7 +3,9 @@
         x:Class="Tempest.UI.Views.AboutWindow"
         Title="About"
         Width="720"
-        Height="320"
+        MinHeight="240"
+        MaxHeight="560"
+        SizeToContent="Height"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource WindowBackgroundBrush}">
@@ -101,7 +103,7 @@
                            FontWeight="Bold"
                            TextWrapping="Wrap"
                            Foreground="{DynamicResource TextPrimaryBrush}"
-                           Text="Check GitHub for a newer release."/>
+                           Text="Checking GitHub for the latest release..."/>
             </StackPanel>
         </Border>
 
@@ -131,11 +133,6 @@
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Spacing="8">
-            <Button x:Name="CheckUpdatesButton"
-                    Classes="dialog-button"
-                    Content="Check for updates"
-                    MinWidth="168"
-                    Click="OnCheckUpdatesClick"/>
             <Button x:Name="UpdateNowButton"
                     Classes="dialog-button accent-action"
                     Content="Update now"

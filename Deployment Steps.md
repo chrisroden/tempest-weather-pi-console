@@ -386,7 +386,7 @@ The application is optimized for:
 - Touch-friendly interface with large buttons
 - Header menu: Themes, Restart Service & UI, Reboot, About, Exit
 - About shows the installed package version from `/opt/tempest/VERSION` (written by `install-pi.sh` on install/update; shows `unknown` if the file is missing)
-- About **Check for updates** compares that version to the latest GitHub release. If you are already current, it says so. If a newer release exists, **Update now** appears, streams installer output, and on success shows **Restart** (the UI is not restarted automatically)
+- About auto-checks the latest GitHub release when the dialog opens. If you are already current, it says you are on the latest version. If a newer release exists, **Update now** appears, streams installer output only while applying, and on success shows **Restart** (the UI is not restarted automatically)
 - Connection status indicator (green/red dot)
 - Status notification banner with color-coded messages (orange for info, red for errors)
 
@@ -579,11 +579,10 @@ htop
 
 On a Pi install whose sudoers and helper are already in place:
 
-1. Open the header menu → **About**
-2. Tap **Check for updates**
-3. If you are current, About says you are on the latest version
-4. If a newer GitHub release exists, tap **Update now** and watch the log
-5. When it succeeds, tap **Restart** to load the new UI (the installer leaves the UI running so you can see progress)
+1. Open the header menu → **About** (it checks GitHub automatically)
+2. If you are current, About says you are on the latest version
+3. If a newer GitHub release exists, tap **Update now** (progress appears only while the update runs)
+4. When it succeeds, tap **Restart** to load the new UI (the installer leaves the UI running so you can see progress)
 
 Existing installs need **one** CLI update or reinstall of a release that writes `/usr/local/sbin/tempest-update` and the extra sudoers line before About can apply updates.
 

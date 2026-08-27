@@ -49,10 +49,17 @@ public partial class AboutWindow : Window
         }
 
         _updateRunner = updateRunner ?? new InstallUpdateRunner();
+        Opened += OnOpened;
         Closed += OnClosed;
     }
 
-    private async void OnCheckUpdatesClick(object? sender, RoutedEventArgs e)
+    private async void OnOpened(object? sender, EventArgs e)
+    {
+        Opened -= OnOpened;
+        await CheckForUpdatesAsync();
+    }
+
+    private async Task CheckForUpdatesAsync()
     {
         if (_busy)
         {
@@ -71,18 +78,17 @@ public partial class AboutWindow : Window
             var latest = await _releaseClient.GetLatestTagAsync();
             var result = UpdateChecker.Compare(VersionText.Text, latest);
             var helperReady = InstallUpdateRunner.CanApply(out var applyReason);
-            StatusText.Text = result.Message;
+            var ui = AboutUpdateUi.AfterCheck(result, helperReady, applyReason);
+            StatusText.Text = ui.Status;
             _availableVersion = result.UpdateAvailable ? result.LatestVersion : null;
-            _applyAllowed = result.UpdateAvailable && helperReady;
-            UpdateNowButton.IsVisible = result.UpdateAvailable;
-            if (result.UpdateAvailable && !helperReady)
-            {
-                StatusText.Text = $"{result.Message} {applyReason}";
-            }
+            _applyAllowed = ui.EnableUpdateNow;
+            UpdateNowButton.IsVisible = ui.ShowUpdateNow;
         }
         catch (Exception ex)
         {
             StatusText.Text = $"Could not check for updates: {ex.Message}";
+            UpdateNowButton.IsVisible = false;
+            _applyAllowed = false;
         }
         finally
         {
@@ -162,10 +168,7 @@ public partial class AboutWindow : Window
         _busy = true;
         SetButtonsEnabled(false);
         StatusText.Text = "Restarting backend service...";
-        if (UpdateLogPanel.IsVisible)
-        {
-            AppendLog(StatusText.Text);
-        }
+        AppendLog(StatusText.Text);
 
         if (!await LinuxSudo.RunSystemctlAsync("restart", "tempest-backend.service"))
         {
@@ -199,7 +202,6 @@ public partial class AboutWindow : Window
 
     private void SetButtonsEnabled(bool enabled)
     {
-        CheckUpdatesButton.IsEnabled = enabled;
         UpdateNowButton.IsEnabled = enabled && _applyAllowed;
         RestartButton.IsEnabled = enabled;
         CloseButton.IsEnabled = enabled;
@@ -213,17 +215,14 @@ public partial class AboutWindow : Window
         }
 
         UpdateLogPanel.IsVisible = true;
-        Height = 500;
     }
 
     private void AppendLog(string line)
     {
-        if (string.IsNullOrWhiteSpace(line))
+        if (string.IsNullOrWhiteSpace(line) || !UpdateLogPanel.IsVisible)
         {
             return;
         }
-
-        ShowUpdateLog();
 
         if (string.IsNullOrEmpty(UpdateLog.Text))
         {
