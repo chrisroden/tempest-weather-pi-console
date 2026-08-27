@@ -3,9 +3,7 @@
         x:Class="Tempest.UI.Views.AboutWindow"
         Title="About"
         Width="720"
-        MinHeight="240"
-        MaxHeight="560"
-        SizeToContent="Height"
+        Height="320"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource WindowBackgroundBrush}">
@@ -118,6 +116,8 @@
                 Margin="0,0,0,12"
                 Height="160">
             <ScrollViewer x:Name="UpdateLogScroller"
+                          Height="160"
+                          MaxHeight="160"
                           HorizontalScrollBarVisibility="Disabled"
                           VerticalScrollBarVisibility="Auto">
                 <TextBlock x:Name="UpdateLog"
