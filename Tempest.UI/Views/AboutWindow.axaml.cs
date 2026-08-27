@@ -215,6 +215,21 @@ public partial class AboutWindow : Window
         }
 
         UpdateLogPanel.IsVisible = true;
+        Height = 500;
+        Dispatcher.UIThread.Post(CenterOnOwner, DispatcherPriority.Loaded);
+    }
+
+    private void CenterOnOwner()
+    {
+        if (Owner is not Window owner)
+        {
+            return;
+        }
+
+        var scale = owner.RenderScaling;
+        var x = owner.Position.X + (int)((owner.Width - Width) * scale / 2);
+        var y = owner.Position.Y + (int)((owner.Height - Height) * scale / 2);
+        Position = new PixelPoint(x, y);
     }
 
     private void AppendLog(string line)
