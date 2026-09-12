@@ -25,5 +25,6 @@ ${SUDO} rm -f /etc/systemd/system/tempest-backend.service /etc/systemd/system/te
 ${SUDO} rm -f /usr/local/sbin/tempest-update /etc/sudoers.d/tempest
 ${SUDO} systemctl daemon-reload
 ${SUDO} rm -rf "${INSTALL_ROOT}"
+${SUDO} rm -rf "${INSTALL_ROOT}.bak.pre-update-"*
 
 echo "Uninstall complete."
