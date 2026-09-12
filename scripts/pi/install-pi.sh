@@ -489,6 +489,26 @@ read_installed_service_user() {
   fi
 }
 
+# Previous --update runs copied the live tree to ${INSTALL_ROOT}.bak.pre-update-<tag>
+# and never deleted it. Remove those sibling directories so SD cards do not fill up.
+prune_pre_update_backups() {
+  local prefix="${INSTALL_ROOT}.bak.pre-update-"
+  local dir
+  local backups=()
+  shopt -s nullglob
+  backups=( "${prefix}"* )
+  shopt -u nullglob
+  if [[ ${#backups[@]} -eq 0 ]]; then
+    return 0
+  fi
+  info "Removing ${#backups[@]} leftover pre-update backup(s)"
+  for dir in "${backups[@]}"; do
+    if [[ -d "${dir}" ]]; then
+      ${SUDO} rm -rf "${dir}"
+    fi
+  done
+}
+
 run_update() {
   require_command curl
   require_command jq
@@ -548,17 +568,24 @@ run_update() {
   fi
   info "Latest release     : ${latest_tag}"
 
+  if [[ "${DRY_RUN}" == "yes" ]]; then
+    if [[ "${installed_version}" == "${latest_tag}" ]]; then
+      ok "Dry run: already on ${installed_version}; would remove leftover ${INSTALL_ROOT}.bak.pre-update-* directories."
+    else
+      ok "Dry run: would update ${installed_version} → ${latest_tag} (mode: ${MODE})."
+      ok "Dry run: would remove leftover ${INSTALL_ROOT}.bak.pre-update-* directories."
+    fi
+    exit 0
+  fi
+
+  prune_pre_update_backups
+
   if [[ "${installed_version}" == "${latest_tag}" ]]; then
     ok "Already on the latest version (${installed_version})."
     exit 0
   fi
 
   info "Update available: ${installed_version} → ${latest_tag}"
-
-  if [[ "${DRY_RUN}" == "yes" ]]; then
-    ok "Dry run: would update ${installed_version} → ${latest_tag} (mode: ${MODE})."
-    exit 0
-  fi
 
   if [[ "${AUTO_YES}" != "yes" ]]; then
     if ! prompt_yes_no "Apply update to ${latest_tag}" "yes"; then
@@ -635,7 +662,7 @@ run_update() {
     ensure_tempest_processes_stopped "${INSTALL_ROOT}/ui/Tempest.UI" "UI" || true
   fi
 
-  # Safety backup of current live installation before any changes
+  # Safety backup of current live installation before any changes (removed after success)
   local safety_backup="${INSTALL_ROOT}.bak.pre-update-${latest_tag}"
   if [[ -d "${INSTALL_ROOT}" ]]; then
     info "Creating safety backup before update: ${safety_backup}"
@@ -643,27 +670,35 @@ run_update() {
   fi
 
   local tmp_dir
+  local tmp_backend_archive=""
+  local tmp_ui_archive=""
   tmp_dir="$(mktemp -d)"
+  cleanup_update_tmp() {
+    [[ -n "${tmp_dir}" ]] && rm -rf "${tmp_dir}"
+    [[ -n "${tmp_backend_archive}" ]] && rm -f "${tmp_backend_archive}"
+    [[ -n "${tmp_ui_archive}" ]] && rm -f "${tmp_ui_archive}"
+  }
+  trap cleanup_update_tmp EXIT
 
   # Download and extract new binaries
   if [[ "${MODE}" == "backend" || "${MODE}" == "both" ]]; then
-    local tmp_backend_archive
     tmp_backend_archive="$(mktemp)"
     info "Downloading backend archive..."
     curl -fL "${BACKEND_ARCHIVE_URL}" -o "${tmp_backend_archive}"
     mkdir -p "${tmp_dir}/backend"
     tar -xzf "${tmp_backend_archive}" -C "${tmp_dir}/backend"
     rm -f "${tmp_backend_archive}"
+    tmp_backend_archive=""
   fi
 
   if [[ "${MODE}" == "ui" || "${MODE}" == "both" ]]; then
-    local tmp_ui_archive
     tmp_ui_archive="$(mktemp)"
     info "Downloading UI archive..."
     curl -fL "${UI_ARCHIVE_URL}" -o "${tmp_ui_archive}"
     mkdir -p "${tmp_dir}/ui"
     tar -xzf "${tmp_ui_archive}" -C "${tmp_dir}/ui"
     rm -f "${tmp_ui_archive}"
+    tmp_ui_archive=""
   fi
 
   # Swap binaries safely — ALWAYS preserve any existing appsettings*.json files.
@@ -723,7 +758,8 @@ run_update() {
     ${SUDO} chmod +x "${INSTALL_ROOT}/ui/Tempest.UI" || true
   fi
 
-  rm -rf "${tmp_dir}"
+  cleanup_update_tmp
+  trap - EXIT
 
   # Fix ownership
   if id -u "${SERVICE_USER}" >/dev/null 2>&1; then
@@ -784,6 +820,11 @@ run_update() {
     else
       ok "Single UI instance confirmed"
     fi
+  fi
+
+  if [[ -d "${safety_backup}" ]]; then
+    info "Removing safety backup after successful update: ${safety_backup}"
+    ${SUDO} rm -rf "${safety_backup}"
   fi
 
   ok "Update to ${latest_tag} complete."

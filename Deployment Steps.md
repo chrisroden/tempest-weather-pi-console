@@ -596,6 +596,14 @@ sudo /opt/tempest/install-pi.sh --update --yes
 
 This downloads the latest release from GitHub, swaps the binaries, restarts both services, and refreshes the installer script itself so future updates continue to work. The CLI path still stops and restarts `tempest-ui`; the in-app path uses `--keep-ui-running` and waits for **Restart** in About.
 
+`--update` also deletes leftover `/opt/tempest.bak.pre-update-*` directories (full copies of the install from earlier versions). That runs even when you are already on the latest release, so after this installer is on the Pi you can reclaim disk with the same command. Extract dirs under `/tmp` are removed when the update finishes or fails.
+
+To reclaim space on a Pi that still has the old copies:
+
+```bash
+sudo rm -rf /opt/tempest.bak.pre-update-*
+```
+
 ### Preview Before Applying
 
 ```bash
