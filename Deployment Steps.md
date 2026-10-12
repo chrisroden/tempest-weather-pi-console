@@ -604,6 +604,18 @@ To reclaim space on a Pi that still has the old copies:
 sudo rm -rf /opt/tempest.bak.pre-update-*
 ```
 
+### Update Runs but Version Does Not Change
+
+Installers up to and including v1.1.15 could exit at the end of `--update` (after swapping binaries, before writing `/opt/tempest/VERSION`, refreshing `/opt/tempest/install-pi.sh`, or restarting services). About and `cat /opt/tempest/VERSION` then keep showing the old version, and every later update reruns the same stale installer. Fixed in the next release after v1.1.15.
+
+To recover, run the fixed installer from `main` once (this also refreshes `/opt/tempest/install-pi.sh`):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/chrisroden/tempest-weather-pi-console/main/scripts/pi/install-pi.sh | sudo bash -s -- --update --yes
+```
+
+After that, in-app and CLI updates work normally. Confirm with `cat /opt/tempest/VERSION`.
+
 ### Preview Before Applying
 
 ```bash

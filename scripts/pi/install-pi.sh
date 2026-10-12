@@ -677,6 +677,9 @@ run_update() {
     [[ -n "${tmp_dir}" ]] && rm -rf "${tmp_dir}"
     [[ -n "${tmp_backend_archive}" ]] && rm -f "${tmp_backend_archive}"
     [[ -n "${tmp_ui_archive}" ]] && rm -f "${tmp_ui_archive}"
+    # A trailing false `[[ ]] && ...` would make this function return 1 and, under set -e,
+    # abort the update before VERSION is written and the installer is refreshed.
+    return 0
   }
   trap cleanup_update_tmp EXIT
 
