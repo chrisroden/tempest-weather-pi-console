@@ -24,16 +24,16 @@
          FrameworkReference Include="Microsoft.AspNetCore.App" (the modern way in .NET 8+;
          avoids the old Microsoft.AspNetCore.SignalR.* 1.x package IDs). -->
     <!-- Use 9.0.x line for Mvc.Testing because the test project and SUT target net9.0.
-         The 10.x package is net10.0-only. 9.0.21 is a small servicing bump from 9.0.20. -->
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.21" />
-    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.13" />
-    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client.Core" Version="10.0.13" />
+         The 10.x package is net10.0-only. 9.0.22 is a small servicing bump from 9.0.21. -->
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.22" />
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client.Core" Version="10.0.14" />
 
     <!-- Extensions (used by REST, WebSocket, UI) -->
-    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.13" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.13" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.13" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.14" />
 
     <!-- Test tooling -->
     <PackageVersion Include="coverlet.collector" Version="10.1.0" />
