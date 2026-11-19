@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net9.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <LangVersion>default</LangVersion>
@@ -14,9 +14,9 @@
            Microsoft.AspNetCore.SignalR.* 1.x packages or non-existent 10.x meta packages.
            This is the recommended approach for class libraries in .NET 8/9/10 when
            the library is only consumed by ASP.NET Core hosts. -->
+      <!-- Microsoft.AspNetCore.App already brings Microsoft.Extensions.Configuration.*
+           on net10.0; do not re-add those PackageReferences (NU1510). -->
       <FrameworkReference Include="Microsoft.AspNetCore.App" />
-      <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
-      <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
     </ItemGroup>
 
 </Project>

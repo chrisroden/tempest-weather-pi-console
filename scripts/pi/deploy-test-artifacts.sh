@@ -3,7 +3,7 @@ set -euo pipefail
 
 # deploy-test-artifacts.sh
 # Helper to push locally built linux-arm64 self-contained artifacts to a Pi
-# for testing changes (CPM, net9 alignment, Avalonia updates, SignalR cleanup, etc.).
+# for testing changes (CPM, net10 alignment, Avalonia updates, SignalR cleanup, etc.).
 #
 # IMPORTANT: This script is careful to NEVER wipe user configuration data
 # (appsettings.Production.json). It always preserves it during app updates.
