@@ -26,7 +26,7 @@
          Stay on 10.x (LTS) — do not take Dependabot 11.x majors until retargeting off net10.0. -->
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.15" />
     <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.15" />
-    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client.Core" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client.Core" Version="11.0.0" />
 
     <!-- Extensions (used by REST, WebSocket, UI) — keep aligned with SignalR 10.x -->
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.15" />

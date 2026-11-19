@@ -37,6 +37,7 @@
         <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="AvaloniaUI.DiagnosticsSupport" />
         <PackageReference Include="CommunityToolkit.Mvvm" />
         <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
+        <PackageReference Include="Microsoft.AspNetCore.SignalR.Client.Core" />
         <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
     </ItemGroup>
 
