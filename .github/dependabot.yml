@@ -5,6 +5,28 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    # Stay on Microsoft.* 10.x while the solution targets net10.0 (LTS).
+    # Dependabot 11.x majors track .NET 11 STS and break mixed-version CPM
+    # (NU1605) or pull unsupported transitive packages. Remove these ignores
+    # when deliberately retargeting off net10.0.
+    ignore:
+      - dependency-name: "Microsoft.AspNetCore.*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Microsoft.Extensions.*"
+        update-types: ["version-update:semver-major"]
+    groups:
+      avalonia:
+        patterns:
+          - "Avalonia*"
+      microsoft-extensions-configuration:
+        patterns:
+          - "Microsoft.Extensions.Configuration*"
+      microsoft-signalr-client:
+        patterns:
+          - "Microsoft.AspNetCore.SignalR.Client*"
+      coverlet:
+        patterns:
+          - "coverlet.*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
