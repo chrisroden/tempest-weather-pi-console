@@ -49,6 +49,7 @@ jobs:
           name: pi-release-${{ matrix.rid }}
           path: dist/*.tar.gz
           if-no-files-found: error
+          retention-days: 1
 
       - name: Create or update GitHub release
         if: github.ref_type == 'tag'
