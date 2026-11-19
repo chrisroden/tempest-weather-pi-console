@@ -58,6 +58,8 @@ BACKEND_ARCHIVE_URL=""
 UI_ARCHIVE_URL=""
 CONFIG_FILE=""
 INSTALL_ARGS=()
+DOTNET_CHANNEL="${DOTNET_CHANNEL:-10.0}"
+DOTNET_INSTALL_DIR="${DOTNET_INSTALL_DIR:-/usr/share/dotnet}"
 
 usage() {
   cat <<'EOF'
@@ -75,7 +77,63 @@ All unknown args are passed through to install-pi.sh.
 
 Notes:
   - In no-clone mode, bootstrap auto-downloads missing install and systemd template files.
+  - --build-local requires .NET SDK 10; bootstrap installs/upgrades it when missing or outdated.
 EOF
+}
+
+highest_dotnet_sdk_major() {
+  if ! command -v dotnet >/dev/null 2>&1; then
+    printf '0'
+    return
+  fi
+  local maj
+  maj="$(dotnet --list-sdks 2>/dev/null | awk '{print $1}' | cut -d. -f1 | sort -n | tail -1)"
+  printf '%s' "${maj:-0}"
+}
+
+highest_dotnet_runtime_major() {
+  if ! command -v dotnet >/dev/null 2>&1; then
+    printf '0'
+    return
+  fi
+  local maj
+  maj="$(dotnet --list-runtimes 2>/dev/null | awk '{print $2}' | cut -d. -f1 | sort -n | tail -1)"
+  printf '%s' "${maj:-0}"
+}
+
+ensure_dotnet_sdk() {
+  local required_major="${DOTNET_CHANNEL%%.*}"
+  local sdk_major runtime_major
+  sdk_major="$(highest_dotnet_sdk_major)"
+  runtime_major="$(highest_dotnet_runtime_major)"
+
+  if [[ "${sdk_major}" =~ ^[0-9]+$ ]] && [[ "${sdk_major}" -ge "${required_major}" ]] \
+    && [[ "${runtime_major}" =~ ^[0-9]+$ ]] && [[ "${runtime_major}" -ge "${required_major}" ]]; then
+    ok "System .NET SDK/runtime ${sdk_major}.x already present (need ${DOTNET_CHANNEL}+)"
+    return 0
+  fi
+
+  warn "Installing/upgrading .NET ${DOTNET_CHANNEL} runtime and SDK via dotnet-install.sh (SDK major ${sdk_major}, runtime major ${runtime_major})"
+  local dotnet_install
+  dotnet_install="$(mktemp)"
+  curl -fsSL https://dot.net/v1/dotnet-install.sh -o "${dotnet_install}"
+  chmod +x "${dotnet_install}"
+  ${SUDO} mkdir -p "${DOTNET_INSTALL_DIR}"
+  run_with_spinner "Installing .NET ${DOTNET_CHANNEL} runtime" \
+    ${SUDO} "${dotnet_install}" --channel "${DOTNET_CHANNEL}" --runtime dotnet --install-dir "${DOTNET_INSTALL_DIR}"
+  run_with_spinner "Installing .NET ${DOTNET_CHANNEL} ASP.NET Core runtime" \
+    ${SUDO} "${dotnet_install}" --channel "${DOTNET_CHANNEL}" --runtime aspnetcore --install-dir "${DOTNET_INSTALL_DIR}"
+  run_with_spinner "Installing .NET ${DOTNET_CHANNEL} SDK" \
+    ${SUDO} "${dotnet_install}" --channel "${DOTNET_CHANNEL}" --install-dir "${DOTNET_INSTALL_DIR}"
+  ${SUDO} ln -sf "${DOTNET_INSTALL_DIR}/dotnet" /usr/bin/dotnet
+  rm -f "${dotnet_install}"
+
+  sdk_major="$(highest_dotnet_sdk_major)"
+  if [[ ! "${sdk_major}" =~ ^[0-9]+$ ]] || [[ "${sdk_major}" -lt "${required_major}" ]]; then
+    err "Failed to install .NET SDK ${DOTNET_CHANNEL} (detected major ${sdk_major})"
+    exit 1
+  fi
+  ok "System .NET SDK ${DOTNET_CHANNEL} ready (major ${sdk_major})"
 }
 
 detect_layout() {
@@ -174,20 +232,12 @@ install_prereqs() {
   ${SUDO} apt-get update
   ${SUDO} apt-get install -y curl jq ca-certificates tar rsync
 
-  if ! command -v dotnet >/dev/null 2>&1; then
-    warn ".NET not found; installing .NET 9 runtime and SDK via dotnet-install.sh"
-    local dotnet_install
-    dotnet_install="$(mktemp)"
-    curl -fsSL https://dot.net/v1/dotnet-install.sh -o "${dotnet_install}"
-    chmod +x "${dotnet_install}"
-    ${SUDO} mkdir -p /usr/share/dotnet
-    run_with_spinner "Installing .NET runtime" ${SUDO} "${dotnet_install}" --channel 9.0 --runtime dotnet --install-dir /usr/share/dotnet
-    run_with_spinner "Installing .NET SDK" ${SUDO} "${dotnet_install}" --channel 9.0 --install-dir /usr/share/dotnet
-    ${SUDO} ln -sf /usr/share/dotnet/dotnet /usr/bin/dotnet
-    rm -f "${dotnet_install}"
+  if [[ "${BUILD_LOCAL}" == "yes" ]]; then
+    ensure_dotnet_sdk
+    require_command dotnet
+  else
+    info "Skipping .NET SDK install (--download-release); release archives are self-contained."
   fi
-
-  require_command dotnet
 }
 
 prepare_publish_dirs() {

@@ -61,6 +61,10 @@ BACKEND_ARCHIVE_URL=""
 UI_ARCHIVE_URL=""
 GITHUB_REPO="chrisroden/tempest-weather-pi-console"
 UPDATE_HELPER="/usr/local/sbin/tempest-update"
+# System .NET channel used by ensure_dotnet_* helpers (LTS). Release app
+# binaries are self-contained; this is hygiene / troubleshooting / bootstrap.
+DOTNET_CHANNEL="${DOTNET_CHANNEL:-10.0}"
+DOTNET_INSTALL_DIR="${DOTNET_INSTALL_DIR:-/usr/share/dotnet}"
 
 usage() {
   cat <<'EOF'
@@ -98,8 +102,60 @@ Update options:
   Expected GitHub release asset names: backend-linux-arm64.tar.gz, ui-linux-arm64.tar.gz
   (or ...-linux-arm.tar.gz for 32-bit). Override with --backend-archive-url / --ui-archive-url.
 
+  --update also best-effort installs/upgrades the system .NET 10 runtime when
+  missing or older than 10.x. App binaries remain self-contained; a runtime
+  install failure does not abort the update.
+
 When an install option is omitted, the script prompts interactively.
 EOF
+}
+
+highest_dotnet_runtime_major() {
+  if ! command -v dotnet >/dev/null 2>&1; then
+    printf '0'
+    return
+  fi
+  local maj
+  maj="$(dotnet --list-runtimes 2>/dev/null | awk '{print $2}' | cut -d. -f1 | sort -n | tail -1)"
+  printf '%s' "${maj:-0}"
+}
+
+install_dotnet_runtimes() {
+  local required_major="${DOTNET_CHANNEL%%.*}"
+  local have
+  have="$(highest_dotnet_runtime_major)"
+  if [[ "${have}" =~ ^[0-9]+$ ]] && [[ "${have}" -ge "${required_major}" ]]; then
+    ok "System .NET runtime ${have}.x already present (need ${DOTNET_CHANNEL}+)"
+    return 0
+  fi
+
+  info "Installing/upgrading system .NET ${DOTNET_CHANNEL} runtimes (have major ${have})..."
+  local dotnet_install
+  dotnet_install="$(mktemp)"
+  curl -fsSL https://dot.net/v1/dotnet-install.sh -o "${dotnet_install}"
+  chmod +x "${dotnet_install}"
+  ${SUDO} mkdir -p "${DOTNET_INSTALL_DIR}"
+  ${SUDO} "${dotnet_install}" --channel "${DOTNET_CHANNEL}" --runtime dotnet --install-dir "${DOTNET_INSTALL_DIR}"
+  ${SUDO} "${dotnet_install}" --channel "${DOTNET_CHANNEL}" --runtime aspnetcore --install-dir "${DOTNET_INSTALL_DIR}"
+  ${SUDO} ln -sf "${DOTNET_INSTALL_DIR}/dotnet" /usr/bin/dotnet
+  rm -f "${dotnet_install}"
+
+  have="$(highest_dotnet_runtime_major)"
+  if [[ "${have}" =~ ^[0-9]+$ ]] && [[ "${have}" -ge "${required_major}" ]]; then
+    ok "System .NET ${DOTNET_CHANNEL} runtimes ready (major ${have})"
+    return 0
+  fi
+  err "System .NET ${DOTNET_CHANNEL} runtime install did not produce a usable major >= ${required_major}"
+  return 1
+}
+
+# Best-effort: never fails the caller. Release binaries are self-contained.
+ensure_dotnet_runtime_best_effort() {
+  if install_dotnet_runtimes; then
+    return 0
+  fi
+  warn "Could not install/upgrade system .NET ${DOTNET_CHANNEL}; continuing (release binaries are self-contained)."
+  return 0
 }
 
 normalize_yes_no() {
@@ -575,6 +631,7 @@ run_update() {
       ok "Dry run: would update ${installed_version} → ${latest_tag} (mode: ${MODE})."
       ok "Dry run: would remove leftover ${INSTALL_ROOT}.bak.pre-update-* directories."
     fi
+    ok "Dry run: would best-effort ensure system .NET ${DOTNET_CHANNEL} runtimes if missing/outdated."
     exit 0
   fi
 
@@ -593,6 +650,10 @@ run_update() {
       exit 1
     fi
   fi
+
+  # Optional system runtime for troubleshooting / non-self-contained edge cases.
+  # Failure never aborts the self-contained binary swap below.
+  ensure_dotnet_runtime_best_effort
 
   detect_platform
 

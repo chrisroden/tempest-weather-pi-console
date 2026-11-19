@@ -61,15 +61,20 @@ SSH into your Raspberry Pi or use the desktop:
 sudo apt-get update
 sudo apt-get upgrade -y
 
-# Install .NET 9 Runtime (required for the application)
+# Optional: system .NET 10 runtime (not required for release installs — those
+# ship self-contained binaries). Useful for troubleshooting (`dotnet --info`)
+# and required if you build on the Pi via bootstrap-pi.sh --build-local.
+# install-pi.sh --update also best-effort installs/upgrades the runtime when needed.
 wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh
 chmod +x ./dotnet-install.sh
-./dotnet-install.sh --channel 9.0 --runtime dotnet --install-dir /usr/share/dotnet
-sudo ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
+./dotnet-install.sh --channel 10.0 --runtime dotnet --install-dir /usr/share/dotnet
+./dotnet-install.sh --channel 10.0 --runtime aspnetcore --install-dir /usr/share/dotnet
+sudo ln -sf /usr/share/dotnet/dotnet /usr/bin/dotnet
 
 # Verify .NET installation
-dotnet --version
+dotnet --list-runtimes
 ```
+
 
 ### 3. Configure Display Settings (for 7" touchscreen)
 
@@ -405,8 +410,9 @@ sudo journalctl -u tempest-backend -n 50
 # Check permissions
 ls -la /opt/tempest/backend/TempestBlazorApp
 
-# Check .NET runtime
-dotnet --info
+# Check .NET runtime (optional; release binaries are self-contained)
+dotnet --list-runtimes || true
+dotnet --info || true
 ```
 
 **Backend crashes or restarts:**
@@ -595,6 +601,8 @@ sudo /opt/tempest/install-pi.sh --update --yes
 ```
 
 This downloads the latest release from GitHub, swaps the binaries, restarts both services, and refreshes the installer script itself so future updates continue to work. The CLI path still stops and restarts `tempest-ui`; the in-app path uses `--keep-ui-running` and waits for **Restart** in About.
+
+`--update` also best-effort ensures a system **.NET 10** runtime (`dotnet` + `aspnetcore`) under `/usr/share/dotnet` when missing or older than 10.x. That is optional for running the self-contained app binaries; a failed runtime install does not abort the app update.
 
 `--update` also deletes leftover `/opt/tempest.bak.pre-update-*` directories (full copies of the install from earlier versions). That runs even when you are already on the latest release, so after this installer is on the Pi you can reclaim disk with the same command. Extract dirs under `/tmp` are removed when the update finishes or fails.
 

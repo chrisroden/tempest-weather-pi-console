@@ -6,7 +6,7 @@ Thanks for contributing to Tempest Weather Station Console.
 
 Prerequisites:
 
-- .NET SDK 9.0.x
+- .NET SDK 10.0.x
 - Git
 
 Restore dependencies:
